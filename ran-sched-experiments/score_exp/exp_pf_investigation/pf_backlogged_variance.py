@@ -36,7 +36,8 @@ def calculate_variance(data, ues_per_slice, start_slice, end_slice):
     variances = []
     for slice_index in range(start_slice, end_slice + 1):
         slice_data = [bytes for app, bytes in data.items() if determine_slice(app, ues_per_slice) == slice_index]
-        variances.append(np.var(slice_data))
+        print(slice_data)
+        variances.append(np.std(slice_data))
     return variances
 
 print("Interslice is MT0 *******************************")
@@ -83,7 +84,7 @@ bar_mlwdf = ax.bar(positions + 2 * bar_width, variances_mlwdf, bar_width, label=
 # Adding labels and title
 ax.set_xlabel('Slices')
 ax.set_ylabel('Variance of Cumulative Bytes')
-ax.set_title('Variance Comparison Across Different Scheduling Algorithms log 1 with random as baseline')
+ax.set_title('Variance Comparison Across Different Scheduling Algorithms log 0 with random as baseline_2')
 ax.set_xticks(positions + bar_width)
 ax.set_xticklabels([f'Slice {i+1}' for i in range(num_slices)])
 ax.legend()

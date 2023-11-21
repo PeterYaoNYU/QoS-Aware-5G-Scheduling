@@ -8,8 +8,8 @@ import numpy as np
 
 BEGIN_IDX=0
 INTRA=""
-INPUT_DIR="exp-customize-20slices"
-FTYPE=".png"
+INPUT_DIR="hol-15-slices"
+FTYPE=".pdf"
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0, upperbound=100000):
@@ -110,27 +110,31 @@ def get_throughput(fname, slice_begin, slice_end):
 def get_fct_schemes(dname, slice_begin, slice_end, priority_only):
     all_fct = {}
     for i in range(BEGIN_IDX, BEGIN_IDX+1):
-        all_fct['nvs'] = get_fct( dname + "/max_throughput_" + str(i) + ".log", slice_begin, slice_end, priority_only )
-        all_fct['maxcell'] = get_fct( dname + "/mlwdf_" + str(i) + ".log", slice_begin, slice_end, priority_only )
-        all_fct['single'] = get_fct( dname + "/pf_" + INTRA + str(i) + ".log", slice_begin, slice_end, priority_only )
+        all_fct['mt'] = get_fct( dname + "/max_throughput_" + str(i) + ".log", slice_begin, slice_end, priority_only )
+        all_fct['mlwdf'] = get_fct( dname + "/mlwdf_" + str(i) + ".log", slice_begin, slice_end, priority_only )
+        all_fct['pf'] = get_fct( dname + "/pf_" + INTRA + str(i) + ".log", slice_begin, slice_end, priority_only )
     return all_fct
 
 def get_hol_schemes(dname, slice_begin, slice_end):
     all_hol = {}
     for i in range(BEGIN_IDX, BEGIN_IDX+1):
-        all_hol['nvs'] = get_hol( dname + "/max_throughput_" + str(i) + ".log", slice_begin, slice_end)
-        all_hol['maxcell'] = get_hol( dname + "/mlwdf_" + str(i) + ".log", slice_begin, slice_end )
-        all_hol['single'] = get_hol( dname + "/pf_" + INTRA + str(i) + ".log", slice_begin, slice_end )
+        all_hol['mt'] = get_hol( dname + "/max_throughput_" + str(i) + ".log", slice_begin, slice_end)
+        all_hol['mlwdf'] = get_hol( dname + "/mlwdf_" + str(i) + ".log", slice_begin, slice_end )
+        all_hol['pf'] = get_hol( dname + "/pf_" + INTRA + str(i) + ".log", slice_begin, slice_end )
+        # print("mt: ", all_hol["mt"])
+        # print("mlwdf: ", all_hol["mlwdf"])
+        # print("pf: ", all_hol["pf"])
+        
     return all_hol
 
 def get_throughput_schemes(dname, slice_begin, slice_end):
     all_throughput = {}
     for i in range(BEGIN_IDX, BEGIN_IDX+1):
-        all_throughput['nvs'] = np.mean(
+        all_throughput['mt'] = np.mean(
                 get_throughput( dname + "/max_throughput_" + str(i) + ".log", slice_begin, slice_end ) )
-        all_throughput['maxcell'] = np.mean(
+        all_throughput['mlwdf'] = np.mean(
                 get_throughput( dname + "/mlwdf_" + str(i) + ".log", slice_begin, slice_end ) )
-        all_throughput['single'] = np.mean(
+        all_throughput['pf'] = np.mean(
                 get_throughput( dname + "/pf_" + INTRA + str(i) + ".log", slice_begin, slice_end ) )
     return all_throughput
 
@@ -143,22 +147,22 @@ def plot_fct(ofname, slice_begin, slice_end, priority_only=False):
     default_font = 20
     fig, ax = plt.subplots(figsize=(9, 5))
     all_fct = get_fct_schemes(INPUT_DIR, slice_begin, slice_end, priority_only)
-    nvs_x, nvs_y = get_cdf( all_fct['nvs'], 0.0, 5 )
-    maxcell_x, maxcell_y = get_cdf( all_fct['maxcell'], 0.0, 5 )
-    single_x, single_y = get_cdf( all_fct['single'], 0.0, 5 )
-    # nvs_x, nvs_y = get_cdf( all_fct['nvs'], 0.0 )
-    # maxcell_x, maxcell_y = get_cdf( all_fct['maxcell'], 0.0 )
-    # single_x, single_y = get_cdf( all_fct['single'], 0.0 )
+    mt_x, mt_y = get_cdf( all_fct['mt'], 0.0, 5 )
+    mlwdf_x, mlwdf_y = get_cdf( all_fct['mlwdf'], 0.0, 5 )
+    pf_x, pf_y = get_cdf( all_fct['pf'], 0.0, 5 )
+    # mt_x, mt_y = get_cdf( all_fct['mt'], 0.0 )
+    # mlwdf_x, mlwdf_y = get_cdf( all_fct['mlwdf'], 0.0 )
+    # pf_x, pf_y = get_cdf( all_fct['pf'], 0.0 )
 
     # print(ofname)
-    # print("NVS: %f %f %f" % ( np.mean( nvs_x ), nvs_x[int( len(nvs_x)*0.5 )], nvs_x[int( len(nvs_x)*0.95 )] ) )
-    # print("RadioSaber: %f %f %f" % ( np.mean( maxcell_x ), maxcell_x[int( len(maxcell_x)*0.5 )], maxcell_x[int( len(maxcell_x)*0.95 )] ) )
-    # print("No-Slicing: %f %f %f" % ( np.mean( single_x ), single_x[int( len(single_x)*0.5 )], single_x[int( len(single_x)*0.95 )] ) )
+    # print("mt: %f %f %f" % ( np.mean( mt_x ), mt_x[int( len(mt_x)*0.5 )], mt_x[int( len(mt_x)*0.95 )] ) )
+    # print("mlwdf: %f %f %f" % ( np.mean( mlwdf_x ), mlwdf_x[int( len(mlwdf_x)*0.5 )], mlwdf_x[int( len(mlwdf_x)*0.95 )] ) )
+    # print("pf: %f %f %f" % ( np.mean( pf_x ), pf_x[int( len(pf_x)*0.5 )], pf_x[int( len(pf_x)*0.95 )] ) )
     # return
 
-    ax.plot( single_x, single_y, "--", label="No-Slicing", color=COLORS[0], linewidth=2.5 )
-    ax.plot( nvs_x, nvs_y, "--", label="NVS", color=COLORS[1], linewidth=2.5 )
-    ax.plot( maxcell_x, maxcell_y, "--", label="RadioSaber", color=COLORS[2], linewidth=2.5 )
+    ax.plot( pf_x, pf_y, "--", label="pf", color=COLORS[0], linewidth=2.5 )
+    ax.plot( mt_x, mt_y, "--", label="mt", color=COLORS[1], linewidth=2.5 )
+    ax.plot( mlwdf_x, mlwdf_y, "--", label="mlwdf", color=COLORS[2], linewidth=2.5 )
     ax.set_xlabel("Flow Completion Time(s)", fontsize=default_font + 4)
     ax.set_ylabel("Ratio", fontsize=default_font + 4)
     ax.legend(fontsize=default_font + 2)
@@ -171,21 +175,21 @@ def plot_hol_delay(ofname, slice_begin, slice_end):
     default_font = 20
     fig, ax = plt.subplots(figsize=(9, 5))
     all_hol = get_hol_schemes( INPUT_DIR, slice_begin, slice_end )
-    nvs_x, nvs_y = get_cdf( all_hol['nvs'], 0.0, 5 )
-    maxcell_x, maxcell_y = get_cdf( all_hol['maxcell'], 0.0, 5 )
-    single_x, single_y = get_cdf( all_hol['single'], 0.0, 5 )
-    # nvs_x, nvs_y = get_cdf( all_hol['nvs'], 0.0 )
-    # maxcell_x, maxcell_y = get_cdf( all_hol['maxcell'], 0.0 )
-    # single_x, single_y = get_cdf( all_hol['single'], 0.0 )
+    mt_x, mt_y = get_cdf( all_hol['mt'], 0.0, 10 )
+    mlwdf_x, mlwdf_y = get_cdf( all_hol['mlwdf'], 0.0, 10 )
+    pf_x, pf_y = get_cdf( all_hol['pf'], 0.0, 10 )
+    # mt_x, mt_y = get_cdf( all_hol['mt'], 0.0 )
+    # mlwdf_x, mlwdf_y = get_cdf( all_hol['mlwdf'], 0.0 )
+    # pf_x, pf_y = get_cdf( all_hol['pf'], 0.0 )
 
-    # print("NVS: %f %f %f" % ( np.mean( nvs_x ), nvs_x[int( len(nvs_x)*0.5 )], nvs_x[int( len(nvs_x)*0.95 )] ) )
-    # print("RadioSaber: %f %f %f" % ( np.mean( maxcell_x ), maxcell_x[int( len(maxcell_x)*0.5 )], maxcell_x[int( len(maxcell_x)*0.95 )] ) )
-    # print("No-Slicing: %f %f %f" % ( np.mean( single_x ), single_x[int( len(single_x)*0.5 )], single_x[int( len(single_x)*0.95 )] ) )
+    # print("mt: %f %f %f" % ( np.mean( mt_x ), mt_x[int( len(mt_x)*0.5 )], mt_x[int( len(mt_x)*0.95 )] ) )
+    # print("mlwdf: %f %f %f" % ( np.mean( mlwdf_x ), mlwdf_x[int( len(mlwdf_x)*0.5 )], mlwdf_x[int( len(mlwdf_x)*0.95 )] ) )
+    # print("pf: %f %f %f" % ( np.mean( pf_x ), pf_x[int( len(pf_x)*0.5 )], pf_x[int( len(pf_x)*0.95 )] ) )
     # return
 
-    ax.plot( single_x, single_y, "y--", label="No-Slicing", color=COLORS[0], linewidth=2.5 )
-    ax.plot( nvs_x, nvs_y, "r--", label="NVS", color=COLORS[1], linewidth=2.5 )
-    ax.plot( maxcell_x, maxcell_y, "b--", label="RadioSaber", color=COLORS[2], linewidth=2.5 )
+    ax.plot( pf_x, pf_y, "y--", label="pf", color=COLORS[0], linewidth=2.5 )
+    ax.plot( mt_x, mt_y, "r--", label="mt", color=COLORS[1], linewidth=2.5 )
+    ax.plot( mlwdf_x, mlwdf_y, "b--", label="mlwdf", color=COLORS[2], linewidth=2.5 )
     ax.set_xlabel("Queueing Delay(s)", fontsize=default_font + 4)
     ax.set_ylabel("Ratio", fontsize=default_font + 4)
     ax.legend(fontsize=default_font + 2)
@@ -194,6 +198,6 @@ def plot_hol_delay(ofname, slice_begin, slice_end):
     plt.tight_layout()
     fig.savefig( ofname + FTYPE )
 
-# print_throughput( 0, 4 )
-plot_fct( "cdf-fct-pf", 5, 9 )
+print_throughput( 10, 14 )
+# plot_fct( "cdf-fct-pf", 5, 9 )
 plot_hol_delay( "cdf-hol-delay", 10, 14 )

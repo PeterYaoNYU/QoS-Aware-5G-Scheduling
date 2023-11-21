@@ -1,5 +1,7 @@
 #!/bin/bash
-ODIR="exp-customize-20slices"
+# ODIR="exp-customize-20slices"
+
+ODIR="hol-15-slices"
 
 
 run_onecase() {

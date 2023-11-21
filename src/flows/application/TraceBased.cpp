@@ -209,7 +209,9 @@ void TraceBased::Send(void) {
     }
 
     if (iter->TimeToSend != 0) {
-      ScheduleTransmit((iter->TimeToSend) * 0.001);
+      // ScheduleTransmit((iter->TimeToSend) * 0.001);
+      // Peter: change this traffic to be more urgent 2 times 
+      ScheduleTransmit((iter->TimeToSend) * 0.001 * 0.5);
       break;
     }
   }

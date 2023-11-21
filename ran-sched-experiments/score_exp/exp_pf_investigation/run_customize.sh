@@ -12,6 +12,7 @@ run_onecase() {
         ../../../LTE-Sim SingleCellWithI 1 91 1 30 $i 40 ${ODIR}/config.json 2> ${ODIR}/pf_${i}_2nd.log > /dev/null &
         ../../../LTE-Sim SingleCellWithI 1 93 1 30 $i 40 ${ODIR}/config.json 2> ${ODIR}/random_${i}_2nd.log > /dev/null &
 
+
         sleep 1
     done
 }

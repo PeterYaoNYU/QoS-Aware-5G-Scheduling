@@ -170,9 +170,9 @@ def plot_scores_video():
 #     plot_scores(scores, file_name)
 
 # Plot the scores for the last 20 slices of each log file
-max_throughput_scores = extract_last_20_scores('./exp-customize-20slices/max_throughput_0_2nd.log')
-pf_scores = extract_last_20_scores('./exp-customize-20slices/pf_0_2nd.log')
-mlwdf_scores = extract_last_20_scores('./exp-customize-20slices/mlwdf_0_2nd.log')
+max_throughput_scores = extract_last_20_scores('./exp-customize-20slices/max_throughput_1_2nd.log')
+pf_scores = extract_last_20_scores('./exp-customize-20slices/pf_1_2nd.log')
+mlwdf_scores = extract_last_20_scores('./exp-customize-20slices/mlwdf_1_2nd.log')
 plot_scores_pf()
 plot_scores_mt()
 plot_scores_video()

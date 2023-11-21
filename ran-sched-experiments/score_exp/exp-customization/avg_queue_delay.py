@@ -34,14 +34,14 @@ def calculate_average_hol_delay(log_filename):
 # Example usage
 print("PF")
 pf_hol=[]
-log_filename = './exp-customize-20slices/pf_1.log'
+log_filename = './hol-15-slices/pf_1.log'
 average_hol_delays_pf = calculate_average_hol_delay(log_filename)
 for slice_id in range(10, 15):
     pf_hol.append(average_hol_delays_pf[slice_id])
 
 print("MT")
 mt_hol=[]
-log_filename = './exp-customize-20slices/max_throughput_1.log'
+log_filename = './hol-15-slices/max_throughput_1.log'
 average_hol_delays_mt = calculate_average_hol_delay(log_filename)
 for slice_id in range(10, 15):
     mt_hol.append(average_hol_delays_mt[slice_id])
@@ -51,7 +51,7 @@ for slice_id in range(10, 15):
 
 print("mlwdf")
 mlwdf_hol=[]
-log_filename = './exp-customize-20slices/mlwdf_1.log'
+log_filename = './hol-15-slices/mlwdf_1.log'
 average_hol_delays_mlwdf = calculate_average_hol_delay(log_filename)
 for slice_id in range(10, 15):
     mlwdf_hol.append(average_hol_delays_mlwdf[slice_id])
@@ -77,7 +77,7 @@ plt.xlabel('Slice Index')
 plt.ylabel('Average HOL Delay')
 plt.title('Average HOL Delay for different Interslice algo')
 plt.legend()
-plt.savefig(f'./exp-customize-20slices/hol_delay_comparison.png')
+plt.savefig(f'./hol-15-slices/hol_delay_comparison.png')
 plt.close()
 
 

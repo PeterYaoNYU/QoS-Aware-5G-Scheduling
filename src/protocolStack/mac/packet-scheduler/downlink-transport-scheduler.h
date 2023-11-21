@@ -46,7 +46,7 @@ class DownlinkTransportScheduler : public PacketScheduler {
 
   // Charlie: the inter-slice scheduling metric (objective)
   // peter: a function pointer that points to the inter slice algorithm
-  double (*inter_metric_)(UserToSchedule*, int);
+  double (*inter_metric_)(UserToSchedule*, int, int);
 
  public:
   DownlinkTransportScheduler(std::string config_fname, int algo, int metric);

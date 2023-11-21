@@ -56,7 +56,7 @@ using coord_cqi_t = std::pair<coord_t, double>;
 /* d_{u,i}, the instantaneous data rate of UE u for RBG i, which is the
    transmission rate (in bps) per HZ. */
 double maxThroughputMetric(DownlinkTransportScheduler::UserToSchedule* user,
-                           int index) {
+                           int index, int slice_id) {
   // user: u, index: i * rbg_size
   return user->GetSpectralEfficiency().at(index) * 180000 / 1000; // transform the unit of spectral efficiency Jiajin 
 }
@@ -65,7 +65,7 @@ double maxThroughputMetric(DownlinkTransportScheduler::UserToSchedule* user,
    as an exponential weighted moving average of the user's throughput, based on
    its data rate for the RBGs it has been assigned so far. */
 double proportionalFairnessMetric(
-    DownlinkTransportScheduler::UserToSchedule* user, int index) {
+    DownlinkTransportScheduler::UserToSchedule* user, int index, int slice_id) {
   // user: u, index: i * rbg_size
   double averageRate = 1;
   for (int i = 0; i < MAX_BEARERS; ++i) {
@@ -73,7 +73,7 @@ double proportionalFairnessMetric(
       averageRate += user->m_bearers[i]->GetAverageTransmissionRate();
     }
   }
-  return maxThroughputMetric(user, index) / averageRate * 1000; // set the transmission rate to kbps, jiajin
+  return maxThroughputMetric(user, index, slice_id) / averageRate * 1000; // set the transmission rate to kbps, jiajin
 }
 
 /* D_{u,p} * d_{u,i} / R_{u}, where D_{u,p} is the queuing delay experience by
@@ -83,7 +83,7 @@ double proportionalFairnessMetric(
 // because it selects the highest priority first, and if there are multiple UEs
 // with the same priority, it then runs this metric.
 double mLWDFMetric(DownlinkTransportScheduler::UserToSchedule* user,
-                   int index) {
+                   int index, int slice_id) {
   // user: u, index: i * rbg_size
 
   // @peter
@@ -93,6 +93,7 @@ double mLWDFMetric(DownlinkTransportScheduler::UserToSchedule* user,
   double averageRate = 1;
   int max_priority = -1;
   int selected_bearer = -1;
+  double urgency = 1;
   for (int i = 0; i < MAX_BEARERS; ++i) {
     if (user->m_bearers[i]) {
       averageRate += user->m_bearers[i]->GetAverageTransmissionRate();
@@ -108,7 +109,18 @@ double mLWDFMetric(DownlinkTransportScheduler::UserToSchedule* user,
   double HoL = bearer->GetHeadOfLinePacketDelay();
   // fprintf(stderr, "User %d ML Score: %.2f\n", user->GetUserID(),
   //         HoL * maxThroughputMetric(user, index) / averageRate * 1000);  // 4 for rbg_size
-  return HoL * maxThroughputMetric(user, index) / averageRate * 1000;
+
+  if (slice_id <= 4){
+    urgency = 1;
+  } else if (slice_id > 4 && slice_id <= 9){
+    urgency = 10;
+  } else if (slice_id > 9 && slice_id <= 14){
+    urgency = 100;
+  }
+  // return urgency * HoL * maxThroughputMetric(user, index, slice_id) / averageRate * 1000;
+  return urgency * maxThroughputMetric(user, index, slice_id) / averageRate * 1000;
+
+  // return urgency * maxThroughputMetric(user, index, slice_id);
 }
 
 // Peter: Save the score to the log 
@@ -719,7 +731,7 @@ void DownlinkTransportScheduler::RBsAllocation() {
         max_ranks[slice_id] = metrics[i][j];
         user_index[i][slice_id] = j;
         flow_spectraleff[i][slice_id] =
-            inter_metric_(users->at(j), i * rbg_size);
+            inter_metric_(users->at(j), i * rbg_size, slice_id);
       }
     }
   }
@@ -765,7 +777,7 @@ void DownlinkTransportScheduler::RBsAllocation() {
       int uindex = user_index[i][rbg_to_slice[i]];
       assert(uindex != -1);
       int sid = user_to_slice_[users->at(uindex)->GetUserID()];
-      fprintf(stderr, "rbg %d to slice %d, %d\n", i, sid, rbg_to_slice[i]);
+      // fprintf(stderr, "rbg %d to slice %d, %d\n", i, sid, rbg_to_slice[i]);
       assert(sid == rbg_to_slice[i]);
       slice_final_rbgs[sid] += 1;
       int l = i * rbg_size, r = (i + 1) * rbg_size;
