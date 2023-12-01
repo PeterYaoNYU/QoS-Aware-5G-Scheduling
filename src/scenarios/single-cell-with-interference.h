@@ -127,6 +127,10 @@ static void SingleCellWithInterference(double radius, int sched_type,
       downlink_scheduler_type = ENodeB::DLSScheduler_RANDOM;
       std::cout << "Scheduler Random" << std::endl;
       break;
+    case 94: // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
+      downlink_scheduler_type = ENodeB::DLSScheduler_MIX;
+      std::cout << "Scheduler Mix" << std::endl;
+      break;
     default:
       string error_log = "Undefined Scheduler: " + std::to_string(sched_type);
       throw std::runtime_error(error_log);

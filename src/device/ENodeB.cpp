@@ -340,6 +340,12 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
       break;
+
+    case ENodeB::DLSScheduler_MIX: // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
+      scheduler = new DownlinkTransportScheduler(config_fname, 2, 4);
+      scheduler->SetMacEntity(mac);
+      mac->SetDownlinkPacketScheduler(scheduler);
+      break;
       
     default:
       throw std::runtime_error("Error: invalid scheduler type");

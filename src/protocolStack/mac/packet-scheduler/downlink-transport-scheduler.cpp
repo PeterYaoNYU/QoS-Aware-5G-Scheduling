@@ -169,11 +169,16 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
       slice_score_.push_back(0);
 
       // peter: count the number of different enterprise algorithms. 
-      // if (slice_schemes[i]["algo_alpha"].asInt() == 0 && slice_schemes[i]["algo_beta"].asInt() == 0 && slice_schemes[i]["algo_epsilon"].asInt() == 1 && slice_schemes[i]["algo_psi"].asInt() == 1) {
-      //   slice_algo_.push_back(0);
-      // } else {
-      //   slice_algo_.push_back(1);
-      // }
+      if (slice_schemes[i]["algo_alpha"].asInt() == 0 && slice_schemes[i]["algo_beta"].asInt() == 0 && slice_schemes[i]["algo_epsilon"].asInt() == 1 && slice_schemes[i]["algo_psi"].asInt() == 1) {
+        // using PF as the inter slice algorithm
+        inter_algo_weight_count_[0] += slice_schemes[i]["weight"].asDouble();
+      } else if (slice_schemes[i]["algo_alpha"].asInt() == 0 && slice_schemes[i]["algo_beta"].asInt() == 0 && slice_schemes[i]["algo_epsilon"].asInt() == 1 && slice_schemes[i]["algo_psi"].asInt() == 0){
+        // using MT as the inter-slice algorithm
+        inter_algo_weight_count_[1] += slice_schemes[i]["weight"].asDouble();
+      } else {
+        // using MLWDF as the inter-slice algorithm
+        inter_algo_weight_count_[2] += slice_schemes[i]["weight"].asDouble();
+      }
     }
   }
   // [peter] for each slice, calculate the priority
@@ -196,6 +201,8 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
     case 2:  // sched 92
       inter_metric_ = &mLWDFMetric;
       break;
+    // case 4:
+    //   inter_metric_ 
     default:
       throw std::runtime_error("Error: invalid inter-slice metric (objective)");
       break;
