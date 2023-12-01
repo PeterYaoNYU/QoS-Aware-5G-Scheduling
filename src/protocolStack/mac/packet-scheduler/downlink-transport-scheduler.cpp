@@ -107,7 +107,7 @@ double mLWDFMetric(DownlinkTransportScheduler::UserToSchedule* user,
 
   RadioBearer* bearer = user->m_bearers[selected_bearer];
   double HoL = bearer->GetHeadOfLinePacketDelay();
-  // fprintf(stderr, "User %d ML Score: %.2f\n", user->GetUserID(·),
+  // fprintf(stderr, "User %d ML Score: %.2f\n", user->GetUserID(),
   //         HoL * maxThroughputMetric(user, index) / averageRate * 1000);  // 4 for rbg_size
 
   // if (slice_id <= 4){
@@ -134,7 +134,9 @@ void DownlinkTransportScheduler::logScore() {
 
 // peter: reading in the slice cionfiguration
 DownlinkTransportScheduler::DownlinkTransportScheduler(
-    std::string config_fname, int interslice_algo, int interslice_metric = 0) {
+    std::string config_fname, int interslice_algo, int interslice_metric = 0)
+    : inter_algo_weight_count_(3)
+{
   std::ifstream ifs(config_fname);
   if (!ifs.is_open()) {
     throw std::runtime_error("Fail to open configuration file.");
@@ -165,6 +167,13 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
                                       slice_schemes[i]["algo_epsilon"].asInt(),
                                       slice_schemes[i]["algo_psi"].asInt());
       slice_score_.push_back(0);
+
+      // peter: count the number of different enterprise algorithms. 
+      // if (slice_schemes[i]["algo_alpha"].asInt() == 0 && slice_schemes[i]["algo_beta"].asInt() == 0 && slice_schemes[i]["algo_epsilon"].asInt() == 1 && slice_schemes[i]["algo_psi"].asInt() == 1) {
+      //   slice_algo_.push_back(0);
+      // } else {
+      //   slice_algo_.push_back(1);
+      // }
     }
   }
   // [peter] for each slice, calculate the priority

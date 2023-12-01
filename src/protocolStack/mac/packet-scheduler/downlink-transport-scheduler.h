@@ -48,6 +48,10 @@ class DownlinkTransportScheduler : public PacketScheduler {
   // peter: a function pointer that points to the inter slice algorithm
   double (*inter_metric_)(UserToSchedule*, int, int);
 
+  // peter: count the weight of different slices
+  std::vector<double> inter_algo_weight_count_;
+
+
  public:
   DownlinkTransportScheduler(std::string config_fname, int algo, int metric);
   virtual ~DownlinkTransportScheduler();
