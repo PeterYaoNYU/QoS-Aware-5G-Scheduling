@@ -36,34 +36,34 @@ def calculate_variance(data, ues_per_slice, start_slice, end_slice):
     variances = []
     for slice_index in range(start_slice, end_slice + 1):
         slice_data = [bytes for app, bytes in data.items() if determine_slice(app, ues_per_slice) == slice_index]
-        print(slice_data)
+        # print(slice_data)
         variances.append(np.std(slice_data))
     return variances
 
 print("Interslice is MT0 *******************************")
-filename = "./exp-customize-20slices/max_throughput_1_2nd.log"  
+filename = "./exp-customize-20slices/max_throughput_2_2nd.log"  
 
 lines = read_log_file_reverse(filename)
 data = extract_data(lines, 5, 9)
-print(min(data.keys()), max(data.keys()))
+print(min(data.values()), max(data.values()))
 variances_mt = calculate_variance(data, ues_per_slice, 5, 9)
 print(variances_mt)
 
 
 print("Interslice is PF0 *******************************")
-filename = "./exp-customize-20slices/pf_1_2nd.log"  
+filename = "./exp-customize-20slices/pf_2_2nd.log"  
 lines = read_log_file_reverse(filename)
 data = extract_data(lines, 5, 9)
-print(min(data.keys()), max(data.keys()))
+print(min(data.values()), max(data.values()))
 variances_pf = calculate_variance(data, ues_per_slice, 5, 9)
 print(variances_pf)
 
 
 print("Interslice is mlwdf0 *******************************")
-filename = "./exp-customize-20slices/random_1_2nd.log"  
+filename = "./exp-customize-20slices/random_2_2nd.log"  
 lines = read_log_file_reverse(filename)
 data = extract_data(lines, 5, 9)
-print(min(data.keys()), max(data.keys()))
+print(min(data.values()), max(data.values()))
 variances_mlwdf = calculate_variance(data, ues_per_slice, 5, 9)
 print(variances_mlwdf)
 
@@ -84,10 +84,10 @@ bar_mlwdf = ax.bar(positions + 2 * bar_width, variances_mlwdf, bar_width, label=
 # Adding labels and title
 ax.set_xlabel('Slices')
 ax.set_ylabel('Variance of Cumulative Bytes')
-ax.set_title('Variance Comparison Across Different Scheduling Algorithms log 0 with random as baseline_2')
+ax.set_title('Variance Comparison Across Different Scheduling Algorithms log 2 with random as baseline_2')
 ax.set_xticks(positions + bar_width)
 ax.set_xticklabels([f'Slice {i+1}' for i in range(num_slices)])
 ax.legend()
 
-plt.savefig("pf_backlogged_variance_log0_with_random_as_baseline_1.png")
+plt.savefig("pf_backlogged_variance_2.png")
 

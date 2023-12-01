@@ -1,5 +1,6 @@
 #!/bin/bash
 ODIR="exp-customize-20slices"
+rm -f ${ODIR}/*.log
 
 
 run_onecase() {
