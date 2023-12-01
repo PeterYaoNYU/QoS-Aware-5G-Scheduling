@@ -51,6 +51,9 @@ class DownlinkTransportScheduler : public PacketScheduler {
   // peter: count the weight of different slices
   std::vector<double> inter_algo_weight_count_;
 
+  // peter: a flag indicating whether the inter-slice scheduling is in mix mode
+  int mix_mode = 0;
+
 
  public:
   DownlinkTransportScheduler(std::string config_fname, int algo, int metric);
