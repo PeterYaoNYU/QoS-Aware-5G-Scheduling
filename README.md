@@ -1,3 +1,19 @@
+# QoS-aware 5G scheduling
+In this project, we identify the potential problems of RadioSaber, and propose a simple solution. 
+
+## Problem
+To verify the problems with experiments on your own machine, go to /ran-sched-experiments, you will find more instructions under the folder /score_exp (this name does not have any implication. Originally the experiment design used score, but now it has nothing to do with score)
+
+## Solution
+To verify the effectiveness of the solution, please go to /ran-sched-experiments, you will find more instructions under the folder /improve_v1
+
+## Key Modifications
+We changed rather dramatically the original RadioSaber implementaiton. The most important modifications can be found in the folloing files:
+* /src/device/ENodeB.cpp
+* /src/protocalStack/mac/packetScheduler/downlink-transport-scheudler.cpp
+* /src/LTE-Sim.cpp
+
+
 ## Instructions (to group members)
 
 Always check at least that there are no compilation errors. Simply remove the `LTE-Sim` executable and do `make -j8` and see if the compilation succeeds.
@@ -25,19 +41,3 @@ sudo apt install clang-format  # Install clang formatting tool
 git clang-format --style=file  # Do this prior to any commit
 ```
 
-## Week of 10/30
-
-Added customizable objective (metric) to the RadioSaber scheduler. This can be accessed via `SingleCellWithI` and setting the inter-slice scheduler argument. 9 stands for the original RadioSaber (with spectral efficiency as objective), 91 stands for RadioSaber with proportional fairness, and 92 stands for RadioSaber with M-LWDF (modified largest weighted delay first).
-
-Added a trial experiment script, adapted from RadioSaber but with different interslice metrics.
-
-## Week of 11/06
-
-Prepared configurations for the comparison test. Refactored and implemented the plots for throughput, RB/s, flow completion time, and queuing delay. To run the scripts:
-
-```bash
-cd ran-sched-experiments/contradict-objective
-./run.sh                                   # Create all logs (test included)
-./plot.py --test                           # Plot test log
-./plot.py --intra-alg all --flow-type all  # Plot all experiment logs
-```
