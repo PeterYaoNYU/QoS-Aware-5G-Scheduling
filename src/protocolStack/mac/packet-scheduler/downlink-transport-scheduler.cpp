@@ -715,6 +715,39 @@ void DownlinkTransportScheduler::RBsAllocation() {
   // Peter: the metics variable here is very important. It is the enterprise score for each flow and each rbg
   double metrics[nb_rbgs][users->size()];
 
+
+  // peter: check if mix mode, if in mix mode, then randomly select a inter slice scheduler, according to the assigned weight
+  if (mix_mode == 1){
+    int inter_metric_id = -1;
+    double rand_num = (double)rand() / RAND_MAX;
+    double sum = 0;
+    for (int i = 0; i < 3; i++){
+      sum += inter_algo_weight_count_[i];
+      if (rand_num <= sum){
+        inter_metric_id = i;
+        break;
+      }
+    }
+    switch (inter_metric_id) {
+      case 0:
+        inter_metric_ = &maxThroughputMetric;
+        fprintf(stderr, "in mix mode, choosing MT\n");
+        break;
+      case 1:
+        inter_metric_ = &proportionalFairnessMetric;
+        fprintf(stderr, "in mix mode, choosing PF\n");
+        break;
+      case 2:
+        inter_metric_ = &mLWDFMetric;
+        fprintf(stderr, "in mix mode, choosing MLWDF\n");
+        break;
+      default:
+        inter_metric_ = &maxThroughputMetric;
+        fprintf(stderr, "in mix mode, choosing MT, because total < 1\n");
+        break;
+    }
+  }
+
   for (int i = 0; i < nb_rbgs; i++) {
     for (size_t j = 0; j < users->size(); j++) {
       metrics[i][j] = ComputeSchedulingMetric(
@@ -743,35 +776,6 @@ void DownlinkTransportScheduler::RBsAllocation() {
     /* Charlie: in this part, we may have different inter-slice scheduling
        metrics (objectives) based on interslice_metric, reflected on the
        inter_metric_ member (function pointer) */
-
-    // peter: check if mix mode, if in mix mode, then randomly select a inter slice scheduler, according to the assigned weight
-    if (mix_mode == 1){
-      int inter_metric_id = -1;
-      double rand_num = (double)rand() / RAND_MAX;
-      double sum = 0;
-      for (int i = 0; i < 3; i++){
-        sum += inter_algo_weight_count_[i];
-        if (rand_num <= sum){
-          inter_metric_id = i;
-          break;
-        }
-      }
-      switch (inter_metric_id) {
-        case 0:
-          inter_metric_ = &maxThroughputMetric;
-          break;
-        case 1:
-          inter_metric_ = &proportionalFairnessMetric;
-          break;
-        case 2:
-          inter_metric_ = &mLWDFMetric;
-          break;
-        default:
-          inter_metric_ = &maxThroughputMetric;
-          break;
-      }
-    }
-
     for (size_t j = 0; j < users->size(); ++j) {
       int user_id = users->at(j)->GetUserID();
       int slice_id = user_to_slice_[user_id];

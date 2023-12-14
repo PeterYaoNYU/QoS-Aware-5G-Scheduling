@@ -128,6 +128,9 @@ void InternetFlow::Send(void) {
 
 void InternetFlow::SetAvgRate(double rate) {
   // Bytes / Mbps => *8 (us) /1000000 (s)
+
+  // peter: for the sake of experiment, we double the rate of the IP flow
+  rate *= 2;
   m_interval = InternetFlow::m_avg_flowsize / rate * 8 / 1000000;
   m_lambda = 1 / m_interval;
   m_distribute = std::exponential_distribution<double>(m_lambda);
@@ -139,6 +142,10 @@ void InternetFlow::SetAvgRate(double rate) {
 double InternetFlow::GetInterval(void) {
   // return m_interval;
   double interval = m_distribute(m_generator);
+
+  // peter: for the sake of experiment, Reduce the interval by a factor of 2
+  interval /= 2;
+
   return std::ceil(interval * 1000) / 1000.0;
 }
 
