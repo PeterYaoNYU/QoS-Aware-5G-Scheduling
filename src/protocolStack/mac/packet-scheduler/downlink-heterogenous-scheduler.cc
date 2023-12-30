@@ -421,7 +421,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       // TODO: consider only the first pkt in the queue
       //double packet_size = bearer->GetMacQueue()->Peek().GetSize(); // To Check: whether the pkt is a whole
       int accumlated_bytes = bearer->GetMacQueue()->GetQueueSize();
-      user_request_map.insert(accumlated_bytes / delay);
+      user_request_map.insert(make_pair(user_id, accumlated_bytes / delay));
       std::cerr << GetTimeStamp() << " user_id: " << user_id << " accumlated_bytes: " << accumlated_bytes << " delay: " << delay << " request_rate: " << accumlated_bytes / delay << std::endl;
     }
     else if (slice_algo_params_[user_id].type == 2) // filter those GBR UEs
