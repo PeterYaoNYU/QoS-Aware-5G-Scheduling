@@ -39,11 +39,13 @@ struct SchedulerAlgoParam {
   int beta;
   int epsilon;
   int psi;
-  SchedulerAlgoParam(int _alpha, int _beta, int _epsilon, int _psi) {
+  int type;  // Jiajin add: 1. Delay sensitive; 2. Guaranteed Bit Rate; 3. Best-Effort
+  SchedulerAlgoParam(int _alpha, int _beta, int _epsilon, int _psi, int _type = 2) { // Jiajin modify
     alpha = _alpha;
     beta = _beta;
     epsilon = _epsilon;
     psi = _psi;
+    type = _type; // Jiajin add
   }
 };
 

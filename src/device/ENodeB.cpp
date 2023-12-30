@@ -28,6 +28,8 @@
 #include "../protocolStack/mac/packet-scheduler/dl-pf-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-transport-scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/downlink-test.h"
+#include "../protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/enhanced-uplink-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/exp-rule-downlink-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/log-rule-downlink-packet-scheduler.h"
@@ -335,18 +337,12 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
       mac->SetDownlinkPacketScheduler(scheduler);
       break;
 
-    case ENodeB::DLSScheduler_RANDOM: // Peter: Baseline of throughput variance for PF
-      scheduler = new DownlinkTransportScheduler(config_fname, 5, 0);
+    case ENodeB::DLSScheduler_HETEROGENOUS: // Heterogenous
+      scheduler = new DownlinkHeterogenousScheduler(config_fname);
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
       break;
 
-    case ENodeB::DLSScheduler_MIX: // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
-      scheduler = new DownlinkTransportScheduler(config_fname, 2, 4);
-      scheduler->SetMacEntity(mac);
-      mac->SetDownlinkPacketScheduler(scheduler);
-      break;
-      
     default:
       throw std::runtime_error("Error: invalid scheduler type");
       break;
