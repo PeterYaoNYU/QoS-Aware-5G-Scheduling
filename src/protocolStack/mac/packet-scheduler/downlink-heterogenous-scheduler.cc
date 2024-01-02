@@ -438,7 +438,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       user_request_map.insert(make_pair(user_id, accumlated_bytes / delay));
       std::cerr << GetTimeStamp() << " user_id: " << user_id << " accumlated_bytes: " << accumlated_bytes << " delay: " << delay << " request_rate: " << accumlated_bytes / delay << std::endl;
     }
-    else if (slice_algo_params_[user_id].type == 2) // filter those GBR UEs
+    else if (slice_algo_params_[slice_id].type == 2) // filter those GBR UEs
     {
       assert(slice_algo_params_[slice_id].type == 2);
       RadioBearer* bearer = (*it)->m_bearers[0]; // TODO: currently assume only one bearer for each user (originally is slice_priority_[slice_id])
