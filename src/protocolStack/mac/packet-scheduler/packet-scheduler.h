@@ -49,6 +49,14 @@ struct SchedulerAlgoParam {
   }
 };
 
+// // Peter
+// struct SchedulerAlgoParam {
+//   int type; // 1. Delay sensitive; 2. Guaranteed Bit Rate; 3. Best-Effort
+//   SchedulerAlgoParam(int _type = 2) { 
+//     type = _type;
+//   }
+// };
+
 class PacketScheduler {
  public:
   struct FlowToSchedule {

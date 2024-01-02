@@ -81,13 +81,21 @@ DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
   for (int i = 0; i < slice_schemes.size(); i++) {
     int n_slices = slice_schemes[i]["n_slices"].asInt();
     for (int j = 0; j < n_slices; j++) {
+      slice_algo_params_.emplace_back(slice_schemes[i]["algo_alpha"].asInt(),
+                                slice_schemes[i]["algo_beta"].asInt(),
+                                slice_schemes[i]["algo_epsilon"].asInt(),
+                                slice_schemes[i]["algo_psi"].asInt(),
+                                slice_schemes[i]["type"].asInt());
       // Peter: this is a useful place to get the enterprise scheduler algorithms parameters.
       slice_weights_.push_back(slice_schemes[i]["weight"].asDouble());
+      // slice_algo_params_.emplace_back(slice_schemes[i]["type"].asInt());
+      // fprintf(stderr, "slice %d, weight %f, type %d\n", i, slice_schemes[i]["weight"].asDouble(), slice_schemes[i]["type"].asInt());
       // Jiajin remove
-      // slice_algo_params_.emplace_back(slice_schemes[i]["algo_alpha"].asInt(),
-                                      // slice_schemes[i]["algo_beta"].asInt(),
-                                      // slice_schemes[i]["algo_epsilon"].asInt(),
-                                      // slice_schemes[i]["algo_psi"].asInt());
+
+      // fprintf(stderr, "slice %d, weight %f, type %d\n", i, slice_schemes[i]["weight"].asDouble(), slice_schemes[i]["type"].asInt());
+
+      // Peter Remark: I think this should be the right place to place 
+      // bit rate / delay / type of the UE etc. If such parameters come along with the Slice instead of the UE
     }
   }
   // [peter] for each slice, calculate the priority
@@ -363,7 +371,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 
   std::cerr << "slice_id, target_rbs, quota_rbgs: ";
   for (int i = 0; i < num_slices_; ++i) {
-    std::cout << "(" << i << ", " << slice_target_rbs[i] << ", "
+    std::cerr << "(" << i << ", " << slice_target_rbs[i] << ", "
               << slice_quota_rbgs[i] << ") ";
   }
   std::cerr << std::endl;
@@ -376,6 +384,11 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   double metrics[nb_rbgs][users->size()];
   // also calculate the total spectrum efficiency of the RB for all UEs
   double rb_metric_sum[nb_rbgs] = {}; // Initializing array elements to 0
+
+  // Peter: init to 0 for the array rb_metric_sum
+  for (int i = 0; i < nb_rbgs; i++) {
+    rb_metric_sum[i] = 0;
+  }
 
   for (int i = 0; i < nb_rbgs; i++) {
     for (size_t j = 0; j < users->size(); j++) {
@@ -414,6 +427,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     int slice_id = user_to_slice_[user_id];
     if (slice_algo_params_[slice_id].type == 1) // filter those delay-sensitive UEs
     {
+      assert(slice_algo_params_[slice_id].type == 1);
       RadioBearer* bearer = (*it)->m_bearers[0]; // TODO: currently assume only one bearer for each user (originally is slice_priority_[slice_id])
       QoSParameters* qos = bearer->GetQoSParameters();
       double delay = qos->GetMaxDelay(); // TODO: floor the maxdelay. E.g: 5.4ms should be 5ms (assume TTI is 1ms)
@@ -426,6 +440,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
     else if (slice_algo_params_[user_id].type == 2) // filter those GBR UEs
     {
+      assert(slice_algo_params_[slice_id].type == 2);
       RadioBearer* bearer = (*it)->m_bearers[0]; // TODO: currently assume only one bearer for each user (originally is slice_priority_[slice_id])
       QoSParameters* qos = bearer->GetQoSParameters();
       double gbr = qos->GetGBR(); // TODO: should add maxdelay in pkt's qosparamaters: best-effort should be -1
