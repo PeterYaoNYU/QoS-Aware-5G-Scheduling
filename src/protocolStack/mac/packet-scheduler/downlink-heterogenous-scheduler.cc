@@ -354,7 +354,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     extra_rbgs -= slice_quota_rbgs[i];
   }
   // peter: Distribute any remaining RBs (extra_rbs) evenly across the slices with data.
-  // peter: If there are leftover RBs after the even distribution, allocate them to the first slice
+  // peter: If are leftover RBs after the even distribution, allocate them to the first slice
   // (after randomizing the start index with rand_begin_idx to distribute leftovers randomly).
   is_first_slice = true;
   rand_begin_idx = rand();
@@ -475,7 +475,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     {
       // find those situtable RBs
       int target_rb_id = -1;
-      int max_rate_rb_id = -1;
+      int max_rate_rb_id = 0;
       double min_residual_rate = std::numeric_limits<double>::max();
       double max_rate = 0;
       for (int j = 0; j < available_rbs.size(); j++)
@@ -486,8 +486,9 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
           target_rb_id = rb_id;
           min_residual_rate = rb_metric_sum[rb_id] - metrics[rb_id][user_id]; // TODO: Currently, it is an intuitive heuristic fucntion, but later, other methods should also be considered
         }
-        if (target_rb_id == -1 && metrics[rb_id][user_id] > max_rate)
+        if (target_rb_id == -1 && metrics[rb_id][user_id] >= max_rate && rb_id != -1)
         {
+          fprintf(stderr, "Info, cannot find a suitable RB for user_id: %d, updating the max rate RB: %d, the rate is %f \n", user_id, max_rate_rb_id, metrics[max_rate_rb_id][user_id]);
           max_rate = metrics[rb_id][user_id];
           max_rate_rb_id = rb_id;
         }
@@ -495,9 +496,16 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       if (target_rb_id == -1)
       {
         target_rb_id = max_rate_rb_id;
+        fprintf(stderr, "Warning, cannot find a suitable RB for user_id: %d, use the max rate RB: %d\n", user_id, target_rb_id);
+        for (int m = 0; m < available_rbs.size(); m++)
+        {
+          fprintf(stderr, "available_rbs[%d]: %d\n", m, available_rbs[m]);
+          fprintf(stderr, "metrics[%d][%d]: %f\n", available_rbs[m], user_id, metrics[available_rbs[m]][user_id]);
+        }
       }
       request_rate -= metrics[target_rb_id][user_id];
       int l = target_rb_id * rbg_size, r = (target_rb_id + 1) * rbg_size;
+      fprintf(stderr, "user_id: %d, rb_id: %d\n", user_id, l);
       for (int j = l; j < r; ++j) {
         users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
       }
@@ -525,19 +533,27 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     if (ue->GetListOfAllocatedRBs()->size() > 0) {
       std::vector<double> estimatedSinrValues;
 
-      std::cout << "User(" << ue->GetUserID() << ") allocated RBGS:";
+      std::cerr << "User(" << ue->GetUserID() << ") allocated RBGS:";
       for (size_t i = 0; i < ue->GetListOfAllocatedRBs()->size(); i++) {
         int rbid = ue->GetListOfAllocatedRBs()->at(i);
+
+        fprintf(stderr, "rbid: %d\n", rbid);
+        fprintf(stderr, "ue->GetCqiFeedbacks().size(): %d\n", ue->GetCqiFeedbacks().size());
+        assert(rbid < ue->GetCqiFeedbacks().size());
+
         if (rbid % rbg_size == 0)
-          std::cout << " " << rbid / rbg_size << "("
+          std::cerr << " " << rbid / rbg_size << "("
                     << ue->GetCqiFeedbacks().at(rbid) << ")";
+
 
         double sinr = amc->GetSinrFromCQI(
             ue->GetCqiFeedbacks().at(ue->GetListOfAllocatedRBs()->at(i)));
         estimatedSinrValues.push_back(sinr);
       }
+
+      std::cerr << "finish getting the cqi" << std::endl;
       double effectiveSinr = GetEesmEffectiveSinr(estimatedSinrValues);
-      std::cout << " final_cqi: " << amc->GetCQIFromSinr(effectiveSinr)
+      std::cerr << " final_cqi: " << amc->GetCQIFromSinr(effectiveSinr)
                 << std::endl;
       int mcs = amc->GetMCSFromCQI(amc->GetCQIFromSinr(effectiveSinr));
       int transportBlockSize =
@@ -563,7 +579,6 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     GetMacEntity()->GetDevice()->GetPhy()->SendIdealControlMessage(pdcchMsg);
   }
   delete pdcchMsg;
-
 }
 
 
