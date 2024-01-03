@@ -488,7 +488,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         }
         if (target_rb_id == -1 && metrics[rb_id][user_id] >= max_rate && rb_id != -1)
         {
-          fprintf(stderr, "Info, cannot find a suitable RB for user_id: %d, updating the max rate RB: %d, the rate is %f \n", user_id, max_rate_rb_id, metrics[max_rate_rb_id][user_id]);
+          // fprintf(stderr, "Info, cannot find a suitable RB for user_id: %d, updating the max rate RB: %d, the rate is %f \n", user_id, max_rate_rb_id, metrics[max_rate_rb_id][user_id]);
           max_rate = metrics[rb_id][user_id];
           max_rate_rb_id = rb_id;
         }
@@ -496,16 +496,16 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       if (target_rb_id == -1)
       {
         target_rb_id = max_rate_rb_id;
-        fprintf(stderr, "Warning, cannot find a suitable RB for user_id: %d, use the max rate RB: %d\n", user_id, target_rb_id);
-        for (int m = 0; m < available_rbs.size(); m++)
-        {
-          fprintf(stderr, "available_rbs[%d]: %d\n", m, available_rbs[m]);
-          fprintf(stderr, "metrics[%d][%d]: %f\n", available_rbs[m], user_id, metrics[available_rbs[m]][user_id]);
-        }
+        // fprintf(stderr, "Warning, cannot find a suitable RB for user_id: %d, use the max rate RB: %d\n", user_id, target_rb_id);
+        // for (int m = 0; m < available_rbs.size(); m++)
+        // {
+        //   fprintf(stderr, "available_rbs[%d]: %d\n", m, available_rbs[m]);
+        //   fprintf(stderr, "metrics[%d][%d]: %f\n", available_rbs[m], user_id, metrics[available_rbs[m]][user_id]);
+        // }
       }
       request_rate -= metrics[target_rb_id][user_id];
       int l = target_rb_id * rbg_size, r = (target_rb_id + 1) * rbg_size;
-      fprintf(stderr, "user_id: %d, rb_id: %d\n", user_id, l);
+      // fprintf(stderr, "user_id: %d, rb_id: %d\n", user_id, l);
       for (int j = l; j < r; ++j) {
         users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
       }
@@ -537,8 +537,8 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       for (size_t i = 0; i < ue->GetListOfAllocatedRBs()->size(); i++) {
         int rbid = ue->GetListOfAllocatedRBs()->at(i);
 
-        fprintf(stderr, "rbid: %d\n", rbid);
-        fprintf(stderr, "ue->GetCqiFeedbacks().size(): %d\n", ue->GetCqiFeedbacks().size());
+        // fprintf(stderr, "rbid: %d\n", rbid);
+        // fprintf(stderr, "ue->GetCqiFeedbacks().size(): %d\n", ue->GetCqiFeedbacks().size());
         assert(rbid < ue->GetCqiFeedbacks().size());
 
         if (rbid % rbg_size == 0)
