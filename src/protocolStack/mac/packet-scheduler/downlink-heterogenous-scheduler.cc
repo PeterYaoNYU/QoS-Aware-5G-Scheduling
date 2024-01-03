@@ -476,19 +476,21 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       // find those situtable RBs
       int target_rb_id = -1;
       int max_rate_rb_id = -1;
-      double max_residual_rate = 0;
+      double min_residual_rate = std::numeric_limits<double>::max();
+      double max_rate = 0;
       for (int j = 0; j < available_rbs.size(); j++)
       {
         int rb_id = available_rbs[j];
-        if (metrics[rb_id][user_id] > request_rate && rb_metric_sum[rb_id] - metrics[rb_id][user_id] > max_residual_rate)
+        if (metrics[rb_id][user_id] > request_rate && rb_metric_sum[rb_id] - mmax_residual_rateetrics[rb_id][user_id] < min_residual_rate)
         {
           target_rb_id = rb_id;
-          max_residual_rate = rb_metric_sum[rb_id] - metrics[rb_id][user_id]; // TODO: Currently, it is an intuitive heuristic fucntion, but later, other methods should also be considered
+          min_residual_rate = rb_metric_sum[rb_id] - metrics[rb_id][user_id]; // TODO: Currently, it is an intuitive heuristic fucntion, but later, other methods should also be considered
         }
-        if (target_rb_id == -1 && metrics[rb_id][user_id] > max_rate_rb_id)
+        if (target_rb_id == -1 && metrics[rb_id][user_id] > max_rate)
         {
-          max_rate_rb_id = metrics[rb_id][user_id];
-        } 
+          max_rate = metrics[rb_id][user_id];
+          max_rate_rb_id = rb_id;
+        }
       }
       if (target_rb_id == -1)
       {
