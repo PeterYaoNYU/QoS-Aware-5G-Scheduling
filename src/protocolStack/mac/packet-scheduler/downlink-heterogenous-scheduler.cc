@@ -481,7 +481,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       for (int j = 0; j < available_rbs.size(); j++)
       {
         int rb_id = available_rbs[j];
-        if (metrics[rb_id][user_id] > request_rate && rb_metric_sum[rb_id] - mmax_residual_rateetrics[rb_id][user_id] < min_residual_rate)
+        if (metrics[rb_id][user_id] > request_rate && rb_metric_sum[rb_id] - metrics[rb_id][user_id] < min_residual_rate)
         {
           target_rb_id = rb_id;
           min_residual_rate = rb_metric_sum[rb_id] - metrics[rb_id][user_id]; // TODO: Currently, it is an intuitive heuristic fucntion, but later, other methods should also be considered
