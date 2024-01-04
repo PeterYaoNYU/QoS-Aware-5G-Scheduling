@@ -38,7 +38,10 @@ def get_cumubytes(fname, n_slices):
             words = line.split(" ")
             if not words[0].isdigit():
                 continue
-            if words[1] and words[1] != "app:":
+            try:
+                if words[1] and words[1] != "app:":
+                    continue
+            except IndexError:
                 continue
             if int(words[0]) > end_ts:
                 break
