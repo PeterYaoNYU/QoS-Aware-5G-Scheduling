@@ -9,7 +9,7 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR="configs"
 FTYPE=".pdf"
-n_users=30 #450
+n_users=90 #450
 n_slices = 3 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
@@ -37,6 +37,8 @@ def get_cumubytes(fname, n_slices):
         for line in fin:
             words = line.split(" ")
             if not words[0].isdigit():
+                continue
+            if words[1] != "app:":
                 continue
             if int(words[0]) > end_ts:
                 break
