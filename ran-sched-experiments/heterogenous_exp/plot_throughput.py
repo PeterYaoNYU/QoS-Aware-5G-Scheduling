@@ -9,7 +9,7 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR="configs"
 FTYPE=".pdf"
-n_users=30 #450
+n_users=90 #450
 n_slices = 3 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
@@ -41,6 +41,7 @@ def get_cumubytes(fname, n_slices):
             if int(words[0]) > end_ts:
                 break
             if int(words[0]) > begin_ts:
+                print("flow", words[2])
                 flow = int(words[2])
                 sid = int(words[12])
                 cumu_rbs[flow] = int( words[6] ) / (end_ts / 1000 )
