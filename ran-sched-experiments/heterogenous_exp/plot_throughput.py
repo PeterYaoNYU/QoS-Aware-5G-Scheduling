@@ -9,8 +9,8 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR="configs"
 FTYPE=".pdf"
-n_users= 450 #450
-n_slices = 15 #20
+n_users= 600 #450
+n_slices = 20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
@@ -83,6 +83,10 @@ def get_throughput_perslice(dname, n_slices):
             avg_rbs['nvs'][j] += nvs_rbs[j]
             avg_rbs['maxcell'][j] += maxcell_rbs[j]
             avg_rbs['single'][j] += single_rbs[j]
+
+    print("NVS RBS: ", nvs_rbs, sum(nvs_rbs))
+    print("Single RBS: ", single_rbs, sum(single_rbs))
+    print("Maxcell RBS: ", maxcell_rbs, sum(maxcell_rbs))
 
     return avg_rbs, avg_throughput
 
@@ -169,8 +173,8 @@ def plot_together():
     default_font = 20
     #n_slices = 3 #20 
     avg_rbs, avg_throughput = get_throughput_perslice( INPUT_DIR, n_slices )
-    print("AVG RBS: ", avg_rbs)
-    print("AVG THROUGHPUT: ", avg_throughput)
+    # print("AVG RBS: ", avg_rbs)
+    # print("AVG THROUGHPUT: ", avg_throughput)
 
     fig, ax = plt.subplots(ncols=3, figsize=(26, 7), gridspec_kw={"width_ratios": [2,2,1]})
     x_array = np.arange(1, n_slices+1 )
