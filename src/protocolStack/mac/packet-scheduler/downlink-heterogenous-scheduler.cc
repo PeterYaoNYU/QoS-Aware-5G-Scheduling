@@ -88,12 +88,6 @@ DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
                                 slice_schemes[i]["type"].asInt());
       // Peter: this is a useful place to get the enterprise scheduler algorithms parameters.
       slice_weights_.push_back(slice_schemes[i]["weight"].asDouble());
-      // slice_algo_params_.emplace_back(slice_schemes[i]["type"].asInt());
-      // fprintf(stderr, "slice %d, weight %f, type %d\n", i, slice_schemes[i]["weight"].asDouble(), slice_schemes[i]["type"].asInt());
-      // Jiajin remove
-
-      // fprintf(stderr, "slice %d, weight %f, type %d\n", i, slice_schemes[i]["weight"].asDouble(), slice_schemes[i]["type"].asInt());
-
       // Peter Remark: I think this should be the right place to place 
       // bit rate / delay / type of the UE etc. If such parameters come along with the Slice instead of the UE
     }
@@ -102,9 +96,8 @@ DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
   slice_priority_.resize(num_slices_);
   std::fill(slice_priority_.begin(), slice_priority_.end(), 0);
   // [Peter] used later to ensure that the allocations of rbgs overtime is overall fair and accords to the SLA
-  // Jiajin remove
-  // slice_rbs_offset_.resize(num_slices_); 
-  // std::fill(slice_rbs_offset_.begin(), slice_rbs_offset_.end(), 0);
+  slice_rbs_offset_.resize(num_slices_); 
+  std::fill(slice_rbs_offset_.begin(), slice_rbs_offset_.end(), 0);
 
   SetMacEntity(0);
   CreateUsersToSchedule();
@@ -202,6 +195,7 @@ void DownlinkHeterogenousScheduler::UpdateAverageTransmissionRate(void) {
 
 // [Peter] For each radio bearer in each UE, get the respective spectral efficiency
 // [Peter] update the slice's priority to that of the highest UE's priority in the slice
+// peter: clear all previous users, then readd new users to the scheduler
 void DownlinkHeterogenousScheduler::SelectFlowsToSchedule() {
 #ifdef SCHEDULER_DEBUG
   std::cout << "\t Select Flows to schedule" << std::endl;
@@ -296,8 +290,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       continue;
     num_nonempty_slices += 1;
     slice_with_data[slice_id] = true;
-    slice_target_rbs[slice_id] = (int)(nb_rbs * slice_weights_[slice_id]);
-        //(int)(nb_rbs * slice_weights_[slice_id] + slice_rbs_offset_[slice_id]); // Jiajin remove
+    slice_target_rbs[slice_id] = (int)(nb_rbs * slice_weights_[slice_id] + slice_rbs_offset_[slice_id]);
     extra_rbs -= slice_target_rbs[slice_id];
     // // Jiajin add: classify UEs
     // switch (slice_algo_params_[slice_id].type)
@@ -392,23 +385,27 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 
   for (int i = 0; i < nb_rbgs; i++) {
     for (size_t j = 0; j < users->size(); j++) {
+      // peter: the spectral efficiency is calculated for each RBG, should be the sum of all rb in the rbg
       metrics[i][j] = users->at(j)->GetSpectralEfficiency().at(i * rbg_size) * 180000 / 1000;
       rb_metric_sum[i] += metrics[i][j];
     }
   }
-  std::cerr << GetTimeStamp() << " metrics: ";
-  for (int i = 0; i < nb_rbgs; i++) {
-    std::cerr << std::endl;
-    std::cerr << "rb_metric_sum[" << i << ": " << rb_metric_sum[i] << "    ";
-    for (size_t j = 0; j < users->size(); j++) {
-      std::cerr << "(" << i << ", " << j << ", " << metrics[i][j] << ") ";
-    }
-  }
+  // std::cerr << GetTimeStamp() << " metrics: ";
+  // for (int i = 0; i < nb_rbgs; i++) {
+  //   std::cerr << std::endl;
+  //   std::cerr << "rb_metric_sum[" << i << ": " << rb_metric_sum[i] << "    ";
+  //   for (size_t j = 0; j < users->size(); j++) {
+  //     std::cerr << "(" << i << ", " << j << ", " << metrics[i][j] << ") ";
+  //   }
+  // }
+
+  std::cerr << std::endl;
+  std::cerr << GetTimeStamp() << "number of rbgs: " << nb_rbgs << std::endl;
   
   std::vector<int> available_rbs(nb_rbgs, -1); // Initialization with -1: rb_allocation[i] = UE_id
   for (int i = 0; i < nb_rbgs; i++)
   {
-    available_rbs.push_back(i);
+    available_rbs[i] = i;
   }
 
   // std::cerr << GetTimeStamp() << " available_rbs: ";
@@ -445,7 +442,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       QoSParameters* qos = bearer->GetQoSParameters();
       double gbr = qos->GetGBR(); // TODO: should add maxdelay in pkt's qosparamaters: best-effort should be -1
       user_request_map.insert(make_pair(user_id, gbr));
-      std::cerr << GetTimeStamp() << " user_id: " << user_id << " request_rate: " << gbr << std::endl;
+      // std::cerr << GetTimeStamp() << " user_id: " << user_id << " request_rate: " << gbr << std::endl;
     }
     else{
       user_be.push_back(user_id);
@@ -467,6 +464,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     // if slice reaches its weight quota
     if(slice_allocated_rbs[slice_id] >= slice_quota_rbgs[slice_id]){
       unsatisfied_users.push_back(user_id);
+      std::cerr<< GetTimeStamp() << "Warning, slice_id: " << slice_id << " reaches its weight quota " << slice_quota_rbgs[slice_id] << " already allocated to this slice " << slice_allocated_rbs[slice_id] <<", cannot serve user_id: " << user_id << std::endl;
       continue;
     }
     // rb allocation based on request
@@ -510,7 +508,23 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
       }
       // erase the allocated RBs
+
+      // std::cerr << std::endl;
+      // std::cerr << "Before erasing: " << available_rbs.size() <<std::endl;
+      // for (int rb : available_rbs) {
+      //   std::cerr << rb << " ";
+      // }
+      // std::cerr << "\nTrying to erase: " << target_rb_id << std::endl;
+
       available_rbs.erase(remove(available_rbs.begin(), available_rbs.end(), target_rb_id), available_rbs.end());
+
+      // std::cerr << "After erasing: " << available_rbs.size() <<std::endl;
+      // for (int rb : available_rbs) {
+      //   std::cerr << rb << " ";
+      // }
+      // std::cerr << std::endl;
+
+      // available_rbs.erase(remove(available_rbs.begin(), available_rbs.end(), target_rb_id), available_rbs.end());
       slice_allocated_rbs[slice_id] += 1;
       // TODO: if there is no more UEs to be served in the slice, the weight can be shared by UEs within the slice or other slices 
       // if (request_rate <= 0)
@@ -521,6 +535,12 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   } 
   // for those unsatisfied in the previous stage, try to allocate RBs to them. TODO: may do not need it, becasue these RBs can also be shared by UEs in their slice.
 
+
+  // check how many rbs are left unallocated
+  std::cerr << std::endl;
+  std::cerr<< GetTimeStamp() << "The number of unallocated RBG: " << available_rbs.size() << std::endl;
+  std::cerr<< GetTimeStamp() << "The number of unsatisfied users: " << unsatisfied_users.size() << std::endl;
+  
   
   // == TODO: Lastly, Best-effort (MT or PF)
 
@@ -533,7 +553,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     if (ue->GetListOfAllocatedRBs()->size() > 0) {
       std::vector<double> estimatedSinrValues;
 
-      std::cerr << "User(" << ue->GetUserID() << ") allocated RBGS:";
+      // std::cerr << "User(" << ue->GetUserID() << ") allocated RBGS:";
       for (size_t i = 0; i < ue->GetListOfAllocatedRBs()->size(); i++) {
         int rbid = ue->GetListOfAllocatedRBs()->at(i);
 
@@ -541,9 +561,9 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         // fprintf(stderr, "ue->GetCqiFeedbacks().size(): %d\n", ue->GetCqiFeedbacks().size());
         assert(rbid < ue->GetCqiFeedbacks().size());
 
-        if (rbid % rbg_size == 0)
-          std::cerr << " " << rbid / rbg_size << "("
-                    << ue->GetCqiFeedbacks().at(rbid) << ")";
+        // if (rbid % rbg_size == 0)
+          // std::cerr << " " << rbid / rbg_size << "("
+          //           << ue->GetCqiFeedbacks().at(rbid) << ")";
 
 
         double sinr = amc->GetSinrFromCQI(
@@ -551,10 +571,10 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         estimatedSinrValues.push_back(sinr);
       }
 
-      std::cerr << "finish getting the cqi" << std::endl;
+      // std::cerr << "finish getting the cqi" << std::endl;
       double effectiveSinr = GetEesmEffectiveSinr(estimatedSinrValues);
-      std::cerr << " final_cqi: " << amc->GetCQIFromSinr(effectiveSinr)
-                << std::endl;
+      // std::cerr << " final_cqi: " << amc->GetCQIFromSinr(effectiveSinr)
+                // << std::endl;
       int mcs = amc->GetMCSFromCQI(amc->GetCQIFromSinr(effectiveSinr));
       int transportBlockSize =
           amc->GetTBSizeFromMCS(mcs, ue->GetListOfAllocatedRBs()->size());

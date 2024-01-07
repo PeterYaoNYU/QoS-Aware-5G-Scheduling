@@ -6,8 +6,8 @@ import numpy as np
 
 INTRA=""
 TIMES=2
-# INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR="exp-customize-20slices"
+INPUT_DIR="exp-backlogged-20slices"
+# INPUT_DIR="exp-customize-20slices"
 FTYPE=".pdf"
 n_users=450
 COLORS=["brown", "dimgrey", "cornflowerblue"]
