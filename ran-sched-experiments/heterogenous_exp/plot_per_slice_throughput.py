@@ -30,8 +30,8 @@ def get_cumubytes(fname, n_slices):
     cumu_bytes = [0 for i in range(n_users)]
     cumu_rbs = [0 for i in range(n_users)]
     flow_to_slice = [-1 for i in range(n_users)]
-    slice_cumu_bytes = [0 for i in range(n_slices)]
-    slice_cumu_rbs = [0 for i in range(n_slices)]
+    slice_cumu_bytes = [[] for i in range(n_slices)]
+    slice_cumu_rbs = [[] for i in range(n_slices)]
 
     with open(fname, "r") as fin:
         for line in fin:
@@ -51,15 +51,20 @@ def get_cumubytes(fname, n_slices):
                 cumu_rbs[flow] = int( words[6] ) / (end_ts / 1000 )
                 cumu_bytes[flow] = int( words[4] ) / ( end_ts / 1000 )
                 flow_to_slice[flow] = sid
+                print("finding flow with sid: ", sid, " flow: ", flow)
+
 
     for fid in range(n_users):
         sid = flow_to_slice[fid]
+        # print("the current fid: ", fid,  " belongs to slice ID: ", sid)
         if sid == -1:
             continue
-        slice_cumu_bytes[sid] += cumu_bytes[fid]
-        slice_cumu_rbs[sid] += cumu_rbs[fid]
+        slice_cumu_bytes[sid].append( cumu_bytes[fid] )
+        slice_cumu_rbs[sid].append( cumu_rbs[fid] )
 
-    return slice_cumu_rbs, slice_cumu_bytes
+    # print(flow_to_slice)
+    print(slice_cumu_bytes)
+    return slice_cumu_rbs, slice_cumu_bytes, cumu_rbs, cumu_bytes
 
 def get_throughput_perslice(dname, n_slices):
     ratio = 8 / (1000 * 1000)
@@ -230,5 +235,40 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 #plot_fairness()
-plot_together()
+# plot_together()
 #plot_sum_bandwidth()
+slice_cumu_rbs, slice_cumu_bytes, cumu_rbs, cumu_bytes = get_cumubytes( INPUT_DIR + "/single_" + INTRA + "0.log", n_slices )
+print("slice_cumu_rbs: ", slice_cumu_rbs)
+print("slice_cumu_bytes: ", slice_cumu_bytes)
+print("cumu_rbs: ", cumu_rbs)
+print("cumu_bytes: ", cumu_bytes)
+
+tick_positions = range(0, len(cumu_rbs), 15)
+tick_labels = [str(i) for i in tick_positions]
+
+plt.figure(figsize=(10, 6))
+plt.bar(range(len(cumu_rbs)), cumu_rbs, color='blue')
+plt.xlabel('UE ID')
+plt.ylabel('RB Allocation')
+plt.title('Per UE RB Allocation')
+plt.xticks(tick_positions, tick_labels)
+plt.axhline(y=12500, color='r', linestyle='-')
+plt.axhline(y=37500, color='r', linestyle='-')
+plt.axhline(y=75000, color='r', linestyle='-')
+plt.ylim([0, 100000])
+plt.savefig("rb_allocation" + FTYPE )
+plt.show()
+
+# Plot for Throughput
+plt.figure(figsize=(10, 6))
+plt.bar(range(len(cumu_bytes)), cumu_bytes, color='green')
+plt.xlabel('UE ID')
+plt.ylabel('Throughput (Bytes)')
+plt.title('Per UE Throughput')
+plt.xticks(tick_positions, tick_labels)
+plt.axhline(y=12500, color='r', linestyle='-')
+plt.axhline(y=37500, color='r', linestyle='-')
+plt.axhline(y=75000, color='r', linestyle='-')
+plt.ylim([0, 100000])
+plt.savefig("per_ue_throughput" + FTYPE )
+plt.show()
