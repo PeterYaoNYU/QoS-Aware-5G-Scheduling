@@ -46,6 +46,7 @@ def get_cumubytes(fname, n_slices):
             except IndexError:
                 continue
             if int(words[0]) > end_ts:
+                print("reach end ts = 10000 (= 1s)")
                 break
             if int(words[0]) > begin_ts:
                 #print("flow", words[2])
