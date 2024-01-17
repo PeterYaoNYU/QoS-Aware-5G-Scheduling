@@ -26,6 +26,7 @@
 
 #include <vector>
 #include <map>
+#include <deque>
 #include "packet-scheduler.h"
 
 class DownlinkHeterogenousScheduler : public PacketScheduler {
@@ -44,6 +45,11 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   // peter: a function pointer that points to the inter slice algorithm
   double (*inter_metric_)(UserToSchedule*, int);
 
+  // Peter: Sliding window to keep track of how many RBs have been allocated to each UE already
+  const int WINDOW_SIZE = 1000;
+  int num_windows_; 
+  std::vector<std::deque<double>> allocation_logs_;
+
  public:
   DownlinkHeterogenousScheduler(std::string config_fname);
   virtual ~DownlinkHeterogenousScheduler();
@@ -59,7 +65,7 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   void UpdateAverageTransmissionRate(void);
 
   // Jiajin add
-  std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map); // byDDL or byGBR: from min to max
+  std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold); // byDDL or byGBR: from min to max
   //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
 
 };
