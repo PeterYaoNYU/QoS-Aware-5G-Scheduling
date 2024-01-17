@@ -7,7 +7,7 @@ import numpy as np
 INTRA=""
 TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR="less_ue"
+INPUT_DIR= "configs"#"less_ue"
 FTYPE=".pdf"
 n_users= 225 #600 #450
 n_slices = 15 #20 #20
@@ -38,14 +38,18 @@ def get_cumubytes(fname, n_slices):
             words = line.split(" ")
             if not words[0].isdigit():
                 continue
+            if len(words) <= 1:
+                continue
             try:
                 if words[1] and words[1] != "app:":
                     continue
             except IndexError:
                 continue
             if int(words[0]) > end_ts:
+                print("reach end ts = 10000 (= 1s)")
                 break
             if int(words[0]) > begin_ts:
+                #print("flow", words[2])
                 flow = int(words[2])
                 sid = int(words[12])
                 cumu_rbs[flow] = int( words[6] ) / (end_ts / 1000 )
@@ -207,6 +211,8 @@ def plot_together():
     x_array = np.arange( 0, 3, 1 )
     bw_array = [ np.mean(sum_throughput['single']), np.mean(sum_throughput['nvs']), np.mean(sum_throughput['maxcell'])]
     bwerr_array = [ np.std(sum_throughput['single']), np.std(sum_throughput['nvs']), np.std(sum_throughput['maxcell']) ]
+    # rate_per_ue = [bw_array[0] / avg_rbs['single'], bw_array[1] / avg_rbs['nvs'], bw_array[2] / avg_rbs['maxcell']]
+    # print("rate_per_ue[ours, nvs, maxcell]: ", rate_per_ue)
     scheme_array = [ "No-Slicing", "NVS", "RadioSaber" ]
     barlist = ax[2].bar( x_array, bw_array, width = 0.3 )
     for i in range(3):

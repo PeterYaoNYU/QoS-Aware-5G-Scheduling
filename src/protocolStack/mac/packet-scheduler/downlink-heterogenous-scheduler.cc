@@ -469,6 +469,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
     // rb allocation based on request
     double request_rate = user_request_map[user_id];
+    //std::cerr << "slice_id: " << slice_id << " user_id:" << user_id << " request_rate:" << request_rate << std::endl;
     while (request_rate > 0 && slice_allocated_rbs[slice_id] < slice_quota_rbgs[slice_id])
     {
       // find those situtable RBs
@@ -502,6 +503,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         // }
       }
       request_rate -= metrics[target_rb_id][user_id];
+      //std::cerr << "allocated rb_id: " << target_rb_id << " rate: " << metrics[target_rb_id][user_id] << std::endl;
       int l = target_rb_id * rbg_size, r = (target_rb_id + 1) * rbg_size;
       // fprintf(stderr, "user_id: %d, rb_id: %d\n", user_id, l);
       for (int j = l; j < r; ++j) {
@@ -615,7 +617,8 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 // input: all users to be scheduled
 // return: sorted list of delay-sensitive users by increasing DDL
 bool sortByVal(const std::pair<int, double> &a, const std::pair<int, double> &b) {
-    return a.second < b.second;
+    return a.second < b.second; // sort by increasing order of delay
+    //return a.second > b.second; // sort by decreasing order of delay
 }
 
 vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map) {
