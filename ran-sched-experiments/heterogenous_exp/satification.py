@@ -7,7 +7,7 @@ import numpy as np
 INTRA=""
 TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR="less_ue"
+INPUT_DIR="configs"
 FTYPE=".pdf"
 n_users= 225 #600 #450
 n_slices = 15 #20 #20
@@ -51,7 +51,7 @@ def get_cumubytes(fname, n_slices):
                 cumu_rbs[flow] = int( words[6] ) / (end_ts / 1000 )
                 cumu_bytes[flow] = int( words[4] ) / ( end_ts / 1000 )
                 flow_to_slice[flow] = sid
-                print("finding flow with sid: ", sid, " flow: ", flow)
+                # print("finding flow with sid: ", sid, " flow: ", flow)
 
 
     for fid in range(n_users):
@@ -238,10 +238,10 @@ matplotlib.rcParams['ps.fonttype'] = 42
 # plot_together()
 #plot_sum_bandwidth()
 slice_cumu_rbs, slice_cumu_bytes, cumu_rbs, cumu_bytes = get_cumubytes( INPUT_DIR + "/single_" + INTRA + "0.log", n_slices )
-print("slice_cumu_rbs: ", slice_cumu_rbs)
-print("slice_cumu_bytes: ", slice_cumu_bytes)
-print("cumu_rbs: ", cumu_rbs)
-print("cumu_bytes: ", cumu_bytes)
+# print("slice_cumu_rbs: ", slice_cumu_rbs)
+# print("slice_cumu_bytes: ", slice_cumu_bytes)
+# print("cumu_rbs: ", cumu_rbs)
+# print("cumu_bytes: ", cumu_bytes)
 
 tick_positions = range(0, len(cumu_rbs), 15)
 tick_labels = [str(i) for i in tick_positions]
@@ -252,10 +252,10 @@ plt.xlabel('UE ID')
 plt.ylabel('RB Allocation')
 plt.title('Per UE RB Allocation')
 plt.xticks(tick_positions, tick_labels)
-plt.axhline(y=12500, color='r', linestyle='-')
-plt.axhline(y=37500, color='r', linestyle='-')
-plt.axhline(y=75000, color='r', linestyle='-')
-plt.ylim([0, 100000])
+#plt.axhline(y=12500, color='r', linestyle='-')
+#plt.axhline(y=37500, color='r', linestyle='-')
+#plt.axhline(y=75000, color='r', linestyle='-')
+#plt.ylim([0, 100000])
 plt.savefig("rb_allocation" + FTYPE )
 plt.show()
 
