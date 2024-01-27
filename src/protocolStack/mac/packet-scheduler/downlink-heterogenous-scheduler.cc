@@ -467,7 +467,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   }
 
   // Peter: comment: maybe sort by request only is not a good idea, take QoS into consideration later
-  vector<int> request_users = GetSortedUEsIDbyQoS(user_request_map, allocation_logs_, 600); // TODO: maybe later, each slice can decide its own serving order of UEs
+  vector<int> request_users = GetSortedUEsIDbyQoS(user_request_map, allocation_logs_, 50000); // TODO: maybe later, each slice can decide its own serving order of UEs
 
 
 
@@ -524,7 +524,13 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       // peter: update the allocation_logs_ for the user allocated the RB
       double &allocated_bytes = allocation_logs_[user_id].back();
       allocated_bytes += metrics[target_rb_id][user_id];
-      fprintf(stderr, "user_id: %d, allocated_bytes: %d\n", user_id, allocated_bytes);
+
+      float waste = 0;
+      if (metrics[target_rb_id][user_id] > request_rate)
+      {
+        waste = metrics[target_rb_id][user_id] - request_rate;
+      }
+      fprintf(stderr, "user_id: %d, cumulative allocated_bytes at this TTI: %f, size of this rbg: %f, waste of this rbg is: %f\n", user_id, allocated_bytes, metrics[target_rb_id][user_id], waste);
 
       //std::cerr << "allocated rb_id: " << target_rb_id << " rate: " << metrics[target_rb_id][user_id] << std::endl;
       int l = target_rb_id * rbg_size, r = (target_rb_id + 1) * rbg_size;
@@ -667,15 +673,19 @@ vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> 
 
     // peter: filtered user delay pair
     vector<pair<int, double>> filtered_user_delay_pair;
-
+ 
     // peter: filter out those users whose allocation is less than the threshold
     for (const auto &pair : user_delay_pair) {
       int user_id = pair.first;
       double request_rate = WINDOW_SIZE * pair.second - allocate_sum_hist[user_id];
       if (request_rate >= threshold) {
         filtered_user_delay_pair.push_back(std::make_pair(user_id, request_rate));
+      } else {
+        fprintf(stderr, "User %d requesting rate: %f is less than the threshold: %f\n", user_id, request_rate, threshold);
       }
     }
+
+    fprintf(stderr, "filtered_user_delay_pair.size(): %d\n", filtered_user_delay_pair.size());
 
     // Sort the vector by increasing order of its pair's second value
     // TODO: try GBR from max to min later

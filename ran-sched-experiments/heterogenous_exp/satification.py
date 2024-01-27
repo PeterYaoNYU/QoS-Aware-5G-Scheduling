@@ -7,10 +7,10 @@ import numpy as np
 INTRA=""
 TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR="configs"
+INPUT_DIR="less_ue"
 FTYPE=".pdf"
-n_users= 225 #600 #450
-n_slices = 15 #20 #20
+n_users= 250 #600 #450
+n_slices = 5 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
@@ -262,13 +262,13 @@ def plot_together():
 
 def per_ue_satisfication_rate (per_second_throughput) :
     per_ue_satisfication_rate = []
-    gbr_requirement = [12500, 37500, 75000]
-    for i in range(3):
-        for j in range(75):
-            if per_second_throughput[i * 75 + j] >= gbr_requirement[i]:
-                per_ue_satisfication_rate.append(1)
-            else:
-                per_ue_satisfication_rate.append(0)
+    # gbr_requirement = [12500, 37500, 75000]
+    gbr_requirement = 12500
+    for i in range(250):
+        if per_second_throughput[i] >= gbr_requirement:
+            per_ue_satisfication_rate.append(1)
+        else:
+            per_ue_satisfication_rate.append(0)
     return per_ue_satisfication_rate
 
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -291,7 +291,7 @@ cumu_rbs = [0 for i in range(n_users)]
 cumu_bytes = [0 for i in range(n_users)]
 for i in range (10):
     print("i: ", i)
-    cumu_rbs, cumu_bytes = get_cumubytes_customized_begin_end( INPUT_DIR + "/nvs_" + INTRA + str(0) + ".log", n_slices, 1000 * i, 10000 * (i+1), cumu_rbs, cumu_bytes )
+    cumu_rbs, cumu_bytes = get_cumubytes_customized_begin_end( INPUT_DIR + "/maxcell_" + INTRA + str(0) + ".log", n_slices, 1000 * i, 1000 * (i+1), cumu_rbs, cumu_bytes )
     per_second_throughput.append(cumu_bytes)
     per_second_rbs.append(cumu_rbs)
 
@@ -324,7 +324,9 @@ plt.xlabel('UE ID')
 plt.ylabel('satisfication rate')
 plt.title('Satisfication')
 plt.xticks(tick_positions, tick_labels)
-plt.savefig("satisfication rate" + FTYPE )
+plt.savefig("satisfication rate_maxcell" + FTYPE )
+# plt.savefig("satisfication rate_nvs" + FTYPE )
+
 plt.show()
 
 # # Plot for Throughput

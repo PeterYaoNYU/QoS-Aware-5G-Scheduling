@@ -7,7 +7,7 @@ import numpy as np
 INTRA=""
 TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR="configs"
+INPUT_DIR="less_ue"
 FTYPE=".pdf"
 n_users= 225 #600 #450
 n_slices = 15 #20 #20
@@ -264,7 +264,7 @@ for scheme_to_plot in schemes_to_plot:
     # Plot for Throughput
     plt.figure(figsize=(10, 6))
     cumu_bytes = [i * 8 / (1000 * 1000) for i in cumu_bytes]
-    print("total thr: ", sum(cumu_bytes))
+    print("total thr: ", scheme_to_plot,  sum(cumu_bytes))
 
     sat_num = [0, 0, 0]
     for i in range(len(cumu_bytes)):
