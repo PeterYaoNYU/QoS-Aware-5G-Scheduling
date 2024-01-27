@@ -691,9 +691,13 @@ vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> 
     // TODO: try GBR from max to min later
     sort(filtered_user_delay_pair.begin(), filtered_user_delay_pair.end(), sortByVal);
 
+    for (int i = 0; i < filtered_user_delay_pair.size(); i++) {
+      fprintf(stderr, "user_id: %d, request_rate: %f\n", filtered_user_delay_pair[i].first, filtered_user_delay_pair[i].second);
+    }
+
     // Extract sorted user IDs from sorted pair vector
     vector<int> sorted_selected_users_ids;
-    for (const auto &pair : user_delay_pair) {
+    for (const auto &pair : filtered_user_delay_pair) {
         sorted_selected_users_ids.push_back(pair.first);
     }
 
