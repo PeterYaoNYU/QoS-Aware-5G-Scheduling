@@ -19,7 +19,7 @@
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
 
-#include "downlink-transport-scheduler.h"
+#include "maxcell-with-gbr-cap.h"
 #include <jsoncpp/json/json.h>
 #include <algorithm>
 #include <cassert>
