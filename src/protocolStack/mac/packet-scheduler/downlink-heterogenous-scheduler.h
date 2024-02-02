@@ -65,7 +65,7 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   void UpdateAverageTransmissionRate(void);
 
   // Jiajin add
-  std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold); // byDDL or byGBR: from min to max
+  std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate); // byDDL or byGBR: from min to max
   //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
 
 };

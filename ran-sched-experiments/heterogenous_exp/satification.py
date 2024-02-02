@@ -263,7 +263,7 @@ def plot_together():
 def per_ue_satisfication_rate (per_second_throughput) :
     per_ue_satisfication_rate = []
     # gbr_requirement = [12500, 37500, 75000]
-    gbr_requirement = 12500
+    gbr_requirement = 37500
     for i in range(250):
         if per_second_throughput[i] >= gbr_requirement:
             per_ue_satisfication_rate.append(1)
@@ -291,7 +291,7 @@ cumu_rbs = [0 for i in range(n_users)]
 cumu_bytes = [0 for i in range(n_users)]
 for i in range (10):
     print("i: ", i)
-    cumu_rbs, cumu_bytes = get_cumubytes_customized_begin_end( INPUT_DIR + "/maxcell_" + INTRA + str(0) + ".log", n_slices, 1000 * i, 1000 * (i+1), cumu_rbs, cumu_bytes )
+    cumu_rbs, cumu_bytes = get_cumubytes_customized_begin_end( INPUT_DIR + "/single_" + INTRA + str(0) + ".log", n_slices, 1000 * i, 1000 * (i+1), cumu_rbs, cumu_bytes )
     per_second_throughput.append(cumu_bytes)
     per_second_rbs.append(cumu_rbs)
 
@@ -322,10 +322,16 @@ plt.figure(figsize=(10, 6))
 plt.bar(range(len(all_ue_satisfication_rate)), all_ue_satisfication_rate, color='blue')
 plt.xlabel('UE ID')
 plt.ylabel('satisfication rate')
-plt.title('Satisfication')
+plt.title('Satisfication hetero')
+# plt.title('Satisfication maxcell')
+# plt.title('Satisfication nvs')
+
+
 plt.xticks(tick_positions, tick_labels)
-plt.savefig("satisfication rate_maxcell" + FTYPE )
+plt.savefig("satisfication rate_hetero" + FTYPE )
 # plt.savefig("satisfication rate_nvs" + FTYPE )
+# plt.savefig("satisfication rate_maxcell" + FTYPE )
+
 
 plt.show()
 

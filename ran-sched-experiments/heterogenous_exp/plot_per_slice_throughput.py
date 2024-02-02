@@ -9,8 +9,8 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR="less_ue"
 FTYPE=".pdf"
-n_users= 225 #600 #450
-n_slices = 15 #20 #20
+n_users= 250 #600 #450
+n_slices = 5 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
@@ -268,15 +268,15 @@ for scheme_to_plot in schemes_to_plot:
 
     sat_num = [0, 0, 0]
     for i in range(len(cumu_bytes)):
-        if i < 75:
-            if cumu_bytes[i] >= 100000*8/1000/1000:
-                sat_num[0] += 1
-        elif i < 150:
-            if cumu_bytes[i] >= 300000*8/1000/1000:
-                sat_num[1] += 1
-        else:
-            if cumu_bytes[i] >= 600000*8/1000/1000:
-                sat_num[2] += 1
+        # if i < 75:
+        #     if cumu_bytes[i] >= 100000*8/1000/1000:
+        #         sat_num[0] += 1
+        # elif i < 150:
+        if cumu_bytes[i] >= 300000*8/1000/1000:
+            sat_num[1] += 1
+        # else:
+        #     if cumu_bytes[i] >= 600000*8/1000/1000:
+        #         sat_num[2] += 1
     print(sat_num)
 
     plt.bar(range(len(cumu_bytes)), cumu_bytes, color='green')
@@ -284,9 +284,9 @@ for scheme_to_plot in schemes_to_plot:
     plt.ylabel('Throughput (Mbps)')
     plt.title('Per UE Throughput ' + scheme_to_plot[:-1])
     plt.xticks(tick_positions, tick_labels)
-    plt.axhline(y=100000*8/1000/1000, color='r', linestyle='-') # 12500 * 8
+    # plt.axhline(y=100000*8/1000/1000, color='r', linestyle='-') # 12500 * 8
     plt.axhline(y=300000*8/1000/1000, color='r', linestyle='-') # 37500 * 8
-    plt.axhline(y=600000*8/1000/1000, color='r', linestyle='-') # 75000 * 8
+    # plt.axhline(y=600000*8/1000/1000, color='r', linestyle='-') # 75000 * 8
     #plt.ylim([0, 100000])
     plt.savefig("per_ue_throughput_" + scheme_to_plot[1:-1] + FTYPE )
     plt.show()

@@ -467,7 +467,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   }
 
   // Peter: comment: maybe sort by request only is not a good idea, take QoS into consideration later
-  vector<int> request_users = GetSortedUEsIDbyQoS(user_request_map, allocation_logs_, 50000); // TODO: maybe later, each slice can decide its own serving order of UEs
+  vector<int> request_users = GetSortedUEsIDbyQoS(user_request_map, allocation_logs_, 100000, available_rbs.size()); // TODO: maybe later, each slice can decide its own serving order of UEs
 
 
 
@@ -525,10 +525,10 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       double &allocated_bytes = allocation_logs_[user_id].back();
       allocated_bytes += metrics[target_rb_id][user_id];
 
-      float waste = 0;
-      if (metrics[target_rb_id][user_id] > request_rate)
+      double waste = 0;
+      if (request_rate < 0)
       {
-        waste = metrics[target_rb_id][user_id] - request_rate;
+        waste = -request_rate;
       }
       fprintf(stderr, "user_id: %d, cumulative allocated_bytes at this TTI: %f, size of this rbg: %f, waste of this rbg is: %f\n", user_id, allocated_bytes, metrics[target_rb_id][user_id], waste);
 
@@ -653,7 +653,11 @@ bool sortByVal(const std::pair<int, double> &a, const std::pair<int, double> &b)
     //return a.second > b.second; // sort by decreasing order of delay
 }
 
-vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold) {
+bool sortByValDesc(const std::pair<int, double> &a, const std::pair<int, double> &b) {
+    return a.second > b.second; // sort by decreasing order of delay
+}
+
+vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate) {
 
     // Peter: calculate the sum of the allocation logs
     vector<double> allocate_sum_hist;
@@ -699,6 +703,15 @@ vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> 
     vector<int> sorted_selected_users_ids;
     for (const auto &pair : filtered_user_delay_pair) {
         sorted_selected_users_ids.push_back(pair.first);
+    }
+
+    // to accomodate for the situation where there is a surplus of rbgs after the filtering operation
+    if (sorted_selected_users_ids.size() < total_rbgs_to_allocate) {
+      fprintf(stderr, "Warning: the number of users requesting rate larger than the threshold is less than the number of rbgs to allocate\n");
+      sort(user_delay_pair.begin(), user_delay_pair.end(), sortByValDesc);
+      for (int j = 0; j < total_rbgs_to_allocate - sorted_selected_users_ids.size(); j++) {
+        sorted_selected_users_ids.push_back(user_delay_pair[j].first);
+      }
     }
 
     return sorted_selected_users_ids;
