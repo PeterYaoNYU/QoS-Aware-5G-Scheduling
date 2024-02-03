@@ -132,6 +132,10 @@ static void SingleCellWithInterference(double radius, int sched_type,
       downlink_scheduler_type = ENodeB::DLSScheduler_HETEROGENOUS;
       std::cout << "Scheduler Heterogenous" << std::endl;
       break;
+    case 100: //Peter: maxcell with a cap
+      downlink_scheduler_type = ENodeB::DLSScheduler_MAXCELL_WITH_GBR_CAP;
+      std::cout << "Scheduler MaxCell with GBR Cap" << std::endl;
+      break;
     default:
       string error_log = "Undefined Scheduler: " + std::to_string(sched_type);
       throw std::runtime_error(error_log);

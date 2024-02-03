@@ -45,6 +45,8 @@
 #include "../../packet/Packet.h"
 #include "../../packet/packet-burst.h"
 #include "../mac-entity.h"
+#include "../../../flows/QoS/QoSParameters.h"
+
 
 using std::unordered_map;
 using std::vector;
@@ -55,7 +57,7 @@ using coord_cqi_t = std::pair<coord_t, double>;
 
 /* d_{u,i}, the instantaneous data rate of UE u for RBG i, which is the
    transmission rate (in bps) per HZ. */
-double maxThroughputMetric(DownlinkTransportScheduler::UserToSchedule* user,
+double maxThroughputMetricCap(DownlinkMaxcellGBRCapScheduler::UserToSchedule* user,
                            int index, int slice_id) {
   // user: u, index: i * rbg_size
   return user->GetSpectralEfficiency().at(index) * 180000 / 1000; // transform the unit of spectral efficiency Jiajin 
@@ -64,8 +66,8 @@ double maxThroughputMetric(DownlinkTransportScheduler::UserToSchedule* user,
 /* d_{u,i} / R_{u}, where R_{u} captures the historical RBG allocation for UE u
    as an exponential weighted moving average of the user's throughput, based on
    its data rate for the RBGs it has been assigned so far. */
-double proportionalFairnessMetric(
-    DownlinkTransportScheduler::UserToSchedule* user, int index, int slice_id) {
+double proportionalFairnessMetricCap(
+    DownlinkMaxcellGBRCapScheduler::UserToSchedule* user, int index, int slice_id) {
   // user: u, index: i * rbg_size
   double averageRate = 1;
   for (int i = 0; i < MAX_BEARERS; ++i) {
@@ -73,7 +75,7 @@ double proportionalFairnessMetric(
       averageRate += user->m_bearers[i]->GetAverageTransmissionRate();
     }
   }
-  return maxThroughputMetric(user, index, slice_id) / averageRate * 1000; // set the transmission rate to kbps, jiajin
+  return maxThroughputMetricCap(user, index, slice_id) / averageRate * 1000; // set the transmission rate to kbps, jiajin
 }
 
 /* D_{u,p} * d_{u,i} / R_{u}, where D_{u,p} is the queuing delay experience by
@@ -82,7 +84,7 @@ double proportionalFairnessMetric(
 // Peter: MLWDF is different from previous enterprise scheduling algorithm,
 // because it selects the highest priority first, and if there are multiple UEs
 // with the same priority, it then runs this metric.
-double mLWDFMetric(DownlinkTransportScheduler::UserToSchedule* user,
+double mLWDFMetricCap(DownlinkMaxcellGBRCapScheduler::UserToSchedule* user,
                    int index, int slice_id) {
   // user: u, index: i * rbg_size
 
@@ -118,7 +120,7 @@ double mLWDFMetric(DownlinkTransportScheduler::UserToSchedule* user,
   //   urgency = 100;
   // }
   // return urgency * HoL * maxThroughputMetric(user, index, slice_id) / averageRate * 1000;
-  return HoL * maxThroughputMetric(user, index, slice_id) / averageRate * 1000;
+  return HoL * maxThroughputMetricCap(user, index, slice_id) / averageRate * 1000;
 
   // return urgency * maxThroughputMetric(user, index, slice_id) / averageRate * 1000;
 
@@ -126,14 +128,14 @@ double mLWDFMetric(DownlinkTransportScheduler::UserToSchedule* user,
 }
 
 // Peter: Save the score to the log 
-void DownlinkTransportScheduler::logScore() {
+void DownlinkMaxcellGBRCapScheduler::logScore() {
   for (int i = 0; i < slice_score_.size(); i++) {
     std::cerr << "Slice Index: " << i << ", Score: " << slice_score_[i] << std::endl;
   }
 }
 
 // peter: reading in the slice cionfiguration
-DownlinkTransportScheduler::DownlinkTransportScheduler(
+DownlinkMaxcellGBRCapScheduler::DownlinkMaxcellGBRCapScheduler(
     std::string config_fname, int interslice_algo, int interslice_metric = 0)
     : inter_algo_weight_count_(3)
 {
@@ -165,7 +167,8 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
       slice_algo_params_.emplace_back(slice_schemes[i]["algo_alpha"].asInt(),
                                       slice_schemes[i]["algo_beta"].asInt(),
                                       slice_schemes[i]["algo_epsilon"].asInt(),
-                                      slice_schemes[i]["algo_psi"].asInt());
+                                      slice_schemes[i]["algo_psi"].asInt(),
+                                      slice_schemes[i]["type"].asInt());
       slice_score_.push_back(0);
 
       // peter: count the number of different enterprise algorithms. 
@@ -193,13 +196,13 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
   // Charlie: set the inter-slice metric (objective)
   switch (interslice_metric) {
     case 0:  // sched 9
-      inter_metric_ = &maxThroughputMetric;
+      inter_metric_ = &maxThroughputMetricCap;
       break;
     case 1:  // sched 91
-      inter_metric_ = &proportionalFairnessMetric;
+      inter_metric_ = &proportionalFairnessMetricCap;
       break;
     case 2:  // sched 92
-      inter_metric_ = &mLWDFMetric;
+      inter_metric_ = &mLWDFMetricCap;
       break;
     case 4:
       mix_mode = 1;
@@ -209,17 +212,22 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
       break;
   }
 
+  // [Peter] Initialize the sliding window number, and reserve the corresponding deque space
+  num_windows_ = user_to_slice_.size();
+  fprintf(stderr, "num_windows_: %d\n", num_windows_);
+  allocation_logs_.resize(num_windows_);
+
   SetMacEntity(0);
   CreateUsersToSchedule();
 }
 
-DownlinkTransportScheduler::~DownlinkTransportScheduler() {
+DownlinkMaxcellGBRCapScheduler::~DownlinkMaxcellGBRCapScheduler() {
   Destroy();
 }
 
 // [Peter] For each radio bearer in each UE, get the respective spectral efficiency
 // [Peter] update the slice's priority to that of the highest UE's priority in the slice
-void DownlinkTransportScheduler::SelectFlowsToSchedule() {
+void DownlinkMaxcellGBRCapScheduler::SelectFlowsToSchedule() {
 #ifdef SCHEDULER_DEBUG
   std::cout << "\t Select Flows to schedule" << std::endl;
 #endif
@@ -283,7 +291,7 @@ void DownlinkTransportScheduler::SelectFlowsToSchedule() {
 
 // [Peter]update the CQI, call the actual scheduling function
 // [Peter]entrance of scheduling
-void DownlinkTransportScheduler::DoSchedule(void) {
+void DownlinkMaxcellGBRCapScheduler::DoSchedule(void) {
 #ifdef SCHEDULER_DEBUG
   std::cout << "Start DL packet scheduler for node "
             << GetMacEntity()->GetDevice()->GetIDNetworkNode() << std::endl;
@@ -303,7 +311,7 @@ void DownlinkTransportScheduler::DoSchedule(void) {
 }
 
 // peter: actually send out the packets.
-void DownlinkTransportScheduler::DoStopSchedule(void) {
+void DownlinkMaxcellGBRCapScheduler::DoStopSchedule(void) {
   PacketBurst* pb = new PacketBurst();
   UsersToSchedule* uesToSchedule = GetUsersToSchedule();
   for (auto it = uesToSchedule->begin(); it != uesToSchedule->end(); it++) {
@@ -627,7 +635,7 @@ static vector<int> VogelApproximate(double** flow_spectraleff,
   return rbg_to_slice;
 }
 
-void DownlinkTransportScheduler::RBsAllocation() {
+void DownlinkMaxcellGBRCapScheduler::RBsAllocation() {
   UsersToSchedule* users = GetUsersToSchedule();
   int nb_rbs = GetMacEntity()
                    ->GetDevice()
@@ -656,14 +664,6 @@ void DownlinkTransportScheduler::RBsAllocation() {
         (int)(nb_rbs * slice_weights_[slice_id] + slice_rbs_offset_[slice_id]);
     extra_rbs -= slice_target_rbs[slice_id];
   }
-  // std::cout << "slice target RBs:";
-  // for (int i = 0; i < num_slices_; ++i) {
-  //   std::cout << "(" << i << ", "
-  //     << slice_target_rbs[i] << ", "
-  //     << slice_rbs_offset_[i] << ","
-  //     << slice_weights_[i] << ") ";
-  // }
-  // std::cout << std::endl;
 
   assert(num_nonempty_slices != 0);
   // we enable reallocation between slices, but not flows
@@ -716,37 +716,7 @@ void DownlinkTransportScheduler::RBsAllocation() {
   double metrics[nb_rbgs][users->size()];
 
 
-  // peter: check if mix mode, if in mix mode, then randomly select a inter slice scheduler, according to the assigned weight
-  if (mix_mode == 1){
-    int inter_metric_id = -1;
-    double rand_num = (double)rand() / RAND_MAX;
-    double sum = 0;
-    for (int i = 0; i < 3; i++){
-      sum += inter_algo_weight_count_[i];
-      if (rand_num <= sum){
-        inter_metric_id = i;
-        break;
-      }
-    }
-    switch (inter_metric_id) {
-      case 0:
-        inter_metric_ = &maxThroughputMetric;
-        fprintf(stderr, "in mix mode, choosing MT\n");
-        break;
-      case 1:
-        inter_metric_ = &proportionalFairnessMetric;
-        fprintf(stderr, "in mix mode, choosing PF\n");
-        break;
-      case 2:
-        inter_metric_ = &mLWDFMetric;
-        fprintf(stderr, "in mix mode, choosing MLWDF\n");
-        break;
-      default:
-        inter_metric_ = &maxThroughputMetric;
-        fprintf(stderr, "in mix mode, choosing MT, because total < 1\n");
-        break;
-    }
-  }
+  // peter: main changes begin here: part1 
 
   for (int i = 0; i < nb_rbgs; i++) {
     for (size_t j = 0; j < users->size(); j++) {
@@ -754,6 +724,92 @@ void DownlinkTransportScheduler::RBsAllocation() {
           users->at(j), users->at(j)->GetSpectralEfficiency().at(i * rbg_size));
     }
   }
+
+  // peter: prepare for gbr case: user_request_map
+  map<int, double> user_request_map; // user_id -> request_rate
+  // map<int, double> user_delay_map;
+  vector<int> user_be; // preparation for BE
+  // Calculate required rate: just like ====D3====
+  for (auto it = users->begin(); it != users->end(); ++it) {
+    int user_id = (*it)->GetUserID();
+    int slice_id = user_to_slice_[user_id];
+    if (slice_algo_params_[slice_id].type == 1) // filter those delay-sensitive UEs
+    {
+      assert(slice_algo_params_[slice_id].type == 1);
+      RadioBearer* bearer = (*it)->m_bearers[0]; // TODO: currently assume only one bearer for each user (originally is slice_priority_[slice_id])
+      QoSParameters* qos = bearer->GetQoSParameters();
+      double delay = qos->GetMaxDelay(); // TODO: floor the maxdelay. E.g: 5.4ms should be 5ms (assume TTI is 1ms)
+      //user_delay_map.insert(make_pair(user_id, delay));
+      // TODO: consider only the first pkt in the queue
+      //double packet_size = bearer->GetMacQueue()->Peek().GetSize(); // To Check: whether the pkt is a whole
+      int accumlated_bytes = bearer->GetMacQueue()->GetQueueSize();
+      user_request_map.insert(make_pair(user_id, accumlated_bytes / delay));
+      std::cerr << GetTimeStamp() << " user_id: " << user_id << " accumlated_bytes: " << accumlated_bytes << " delay: " << delay << " request_rate: " << accumlated_bytes / delay << std::endl;
+    }
+    else if (slice_algo_params_[slice_id].type == 2) // filter those GBR UEs
+    {
+      assert(slice_algo_params_[slice_id].type == 2);
+      RadioBearer* bearer = (*it)->m_bearers[0]; // TODO: currently assume only one bearer for each user (originally is slice_priority_[slice_id])
+      QoSParameters* qos = bearer->GetQoSParameters();
+      double gbr = qos->GetGBR(); // TODO: should add maxdelay in pkt's qosparamaters: best-effort should be -1
+      user_request_map.insert(make_pair(user_id, gbr));
+      // std::cerr << GetTimeStamp() << " user_id: " << user_id << " request_rate: " << gbr << std::endl;
+    }
+    else{
+      user_be.push_back(user_id);
+      std::cerr << GetTimeStamp() << " user_id: " << user_id << " best effort" << std::endl;
+    }
+  } 
+
+
+  // Peter: update the allocation logs, for determining whether a UE has met its gbr requirement
+  for (int i = 0; i < num_windows_; i++) {
+    allocation_logs_[i].push_back(0);
+    if (allocation_logs_[i].size() > WINDOW_SIZE) {
+      allocation_logs_[i].pop_front();
+    }  
+  }
+
+  // Peter: calculate the sum of the allocation logs
+  vector<double> allocate_sum_hist;
+  allocate_sum_hist.resize(num_windows_);
+  std::fill(allocate_sum_hist.begin(), allocate_sum_hist.end(), 0);
+  for (int i = 0; i < num_windows_; i++) {
+    for (int j = 0; j < allocation_logs_[i].size(); j++) {
+      allocate_sum_hist[i] += allocation_logs_[i][j];
+    }
+  }
+
+
+  zero_request_ues_.clear();
+  // peter: get a list of ues whose need for this round of allocation is 0 or less
+  for (const auto &pair : user_request_map) {
+    int user_id = pair.first;
+    double request_rate = (WINDOW_SIZE - 1) * pair.second - allocate_sum_hist[user_id];
+    double gbr_unsatisfication_rate = request_rate / (pair.second * (WINDOW_SIZE - 1));
+    if (request_rate <= 0 || gbr_unsatisfication_rate <= 0.10) {
+      fprintf(stderr, "User %d requesting rate: %f is less than the threshold: 0\n", user_id, request_rate);
+      zero_request_ues_.push_back(user_id);
+    }
+    fprintf(stderr, "User %d requesting rate: %f, percentage of unsatisfied gbr: %d\n", user_id, request_rate, request_rate / (pair.second * (WINDOW_SIZE - 1)) * 100);
+  }
+
+  fprintf(stderr, "The total number of users: %d, the user with zero request rate: %d\n", user_request_map.size(), zero_request_ues_.size());
+
+  // peter： update the spectral efficiency logs accordinly
+  // if a ue has already met its gbr, then set its sepctral efficiency to 0. 
+  // this will eliminate it from the consideration of the inter-slice scheduling algorithm
+  for (int i = 0; i < nb_rbgs; i++) {
+    for (size_t j = 0; j < users->size(); j++) {
+      int user_id = users->at(j)->GetUserID();
+      if (std::find(zero_request_ues_.begin(), zero_request_ues_.end(), user_id) != zero_request_ues_.end()) {
+        metrics[i][user_id] = 0;
+      }
+    }
+  }
+
+
+  // peter: main changes end here: part1
 
   AMCModule* amc = GetMacEntity()->GetAmcModule();
 
@@ -912,7 +968,7 @@ void DownlinkTransportScheduler::RBsAllocation() {
   delete pdcchMsg;
 }
 
-double DownlinkTransportScheduler::ComputeSchedulingMetric(
+double DownlinkMaxcellGBRCapScheduler::ComputeSchedulingMetric(
     UserToSchedule* user, double spectralEfficiency) {
   double metric = 0;
   double averageRate = 1;
@@ -948,7 +1004,7 @@ double DownlinkTransportScheduler::ComputeSchedulingMetric(
   return metric;
 }
 
-void DownlinkTransportScheduler::UpdateAverageTransmissionRate(void) {
+void DownlinkMaxcellGBRCapScheduler::UpdateAverageTransmissionRate(void) {
   // we should update the user average transmission rate instead of the flow transmission rate
   RrcEntity* rrc =
       GetMacEntity()->GetDevice()->GetProtocolStack()->GetRrcEntity();

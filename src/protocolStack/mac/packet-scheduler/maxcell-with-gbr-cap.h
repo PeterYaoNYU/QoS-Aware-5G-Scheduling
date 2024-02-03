@@ -19,13 +19,12 @@
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
 
-#ifndef DOWNLINKTRANSPORTSCHEDULER_H_
-#define DOWNLINKTRANSPORTSCHEDULER_H_
 
 #include <vector>
+#include <deque>
 #include "packet-scheduler.h"
 
-class DownlinkTransportScheduler : public PacketScheduler {
+class DownlinkMaxcellGBRCapScheduler : public PacketScheduler {
  private:
   // below use customizable scheduler params
   int num_slices_ = 1;
@@ -54,10 +53,18 @@ class DownlinkTransportScheduler : public PacketScheduler {
   // peter: a flag indicating whether the inter-slice scheduling is in mix mode
   int mix_mode = 0;
 
+  // Peter: Sliding window to keep track of how many RBs have been allocated to each UE already
+  const int WINDOW_SIZE = 1000;
+  int num_windows_; 
+  std::vector<std::deque<double>> allocation_logs_;
+
+  std::vector<int> zero_request_ues_;
+
+
 
  public:
-  DownlinkTransportScheduler(std::string config_fname, int algo, int metric);
-  virtual ~DownlinkTransportScheduler();
+  DownlinkMaxcellGBRCapScheduler(std::string config_fname, int algo, int metric);
+  virtual ~DownlinkMaxcellGBRCapScheduler();
 
   void SelectFlowsToSchedule();
 
@@ -70,4 +77,3 @@ class DownlinkTransportScheduler : public PacketScheduler {
   void UpdateAverageTransmissionRate(void);
 };
 
-#endif /* DOWNLINKPACKETSCHEDULER_H_ */
