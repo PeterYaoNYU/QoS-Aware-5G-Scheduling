@@ -778,6 +778,7 @@ void DownlinkMaxcellGBRCapScheduler::RBsAllocation() {
     for (int j = 0; j < allocation_logs_[i].size(); j++) {
       allocate_sum_hist[i] += allocation_logs_[i][j];
     }
+    fprintf(stderr, "The sum of the allocation logs for user %d is: %f\n", i, allocate_sum_hist[i]);
   }
 
 
@@ -791,7 +792,7 @@ void DownlinkMaxcellGBRCapScheduler::RBsAllocation() {
       fprintf(stderr, "User %d requesting rate: %f is less than the threshold: 0\n", user_id, request_rate);
       zero_request_ues_.push_back(user_id);
     }
-    fprintf(stderr, "User %d requesting rate: %f, percentage of unsatisfied gbr: %d\n", user_id, request_rate, request_rate / (pair.second * (WINDOW_SIZE - 1)) * 100);
+    fprintf(stderr, "User %d requesting rate: %f, percentage of unsatisfied gbr: %f\n", user_id, request_rate, request_rate / (pair.second * (WINDOW_SIZE - 1)) * 100);
   }
 
   fprintf(stderr, "The total number of users: %d, the user with zero request rate: %d\n", user_request_map.size(), zero_request_ues_.size());
@@ -892,6 +893,12 @@ void DownlinkMaxcellGBRCapScheduler::RBsAllocation() {
       for (int j = l; j < r; ++j) {
         users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
       }
+
+      // peter: update the allocation logs here
+      double rate = users->at(uindex)->GetSpectralEfficiency().at(i * rbg_size) * 180000 / 1000;
+      double &allocated_bytes = allocation_logs_[uindex].back();
+      allocated_bytes += rate;
+      fprintf(stderr, "User %d allocated %f bytes\n", uindex, allocated_bytes);
     }
   } else {
     for (auto it = slice_rbgs.begin(); it != slice_rbgs.end(); ++it) {
@@ -905,6 +912,12 @@ void DownlinkMaxcellGBRCapScheduler::RBsAllocation() {
         for (int j = l; j < r; ++j) {
           users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
         }
+
+        // peter: update the allocation logs here
+        double rate = users->at(uindex)->GetSpectralEfficiency().at(i * rbg_size) * 180000 / 1000;
+        double &allocated_bytes = allocation_logs_[uindex].back();
+        allocated_bytes += rate;
+        fprintf(stderr, "User %d allocated %f bytes\n", uindex, allocated_bytes);
       }
     }
   }
