@@ -7,10 +7,15 @@ import numpy as np
 INTRA=""
 TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR="configs"
+INPUT_DIR="less_ue"
 FTYPE=".pdf"
+<<<<<<< HEAD
 n_users= 10#400 #225 #600 #450
 n_slices = 1#20 #15 #20 #20
+=======
+n_users= 250 #600 #450
+n_slices = 5 #20 #20
+>>>>>>> d7468b07b285a3e20cccb08ca9a4dc3540b42e66
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
@@ -237,13 +242,21 @@ matplotlib.rcParams['ps.fonttype'] = 42
 #plot_fairness()
 # plot_together()
 #plot_sum_bandwidth()
-schemes_to_plot = ["/single_", "/nvs_", "/maxcell_"]
+schemes_to_plot = ["/cap_", "/nvs_", "/maxcell_"]
 for scheme_to_plot in schemes_to_plot:
     slice_cumu_rbs, slice_cumu_bytes, cumu_rbs, cumu_bytes = get_cumubytes( INPUT_DIR + scheme_to_plot + INTRA + "0.log", n_slices )
+<<<<<<< HEAD
     #print("slice_cumu_rbs: ", slice_cumu_rbs)
     #print("slice_cumu_bytes: ", slice_cumu_bytes)
     #print("cumu_rbs: ", cumu_rbs)
     #print("cumu_bytes: ", cumu_bytes)
+=======
+    # print("slice_cumu_rbs: ", slice_cumu_rbs)
+    # print("slice_cumu_bytes: ", slice_cumu_bytes)
+    # print("cumu_rbs: ", cumu_rbs)
+    # print("cumu_bytes: ", cumu_bytes)
+
+>>>>>>> d7468b07b285a3e20cccb08ca9a4dc3540b42e66
     tick_positions = range(0, len(cumu_rbs), 15)
     tick_labels = [str(i) for i in tick_positions]
 
@@ -263,6 +276,7 @@ for scheme_to_plot in schemes_to_plot:
     # Plot for Throughput
     plt.figure(figsize=(10, 6))
     cumu_bytes = [i * 8 / (1000 * 1000) for i in cumu_bytes]
+<<<<<<< HEAD
     print(scheme_to_plot)
     print("total thr: ", sum(cumu_bytes))
 
@@ -290,11 +304,28 @@ for scheme_to_plot in schemes_to_plot:
     #         if cumu_bytes[i] >= 600000*8/1000/1000:
     #             sat_num[2] += 1
     # print(sat_num)
+=======
+    print("total thr: ", scheme_to_plot,  sum(cumu_bytes))
+
+    sat_num = [0, 0, 0]
+    for i in range(len(cumu_bytes)):
+        # if i < 75:
+        #     if cumu_bytes[i] >= 100000*8/1000/1000:
+        #         sat_num[0] += 1
+        # elif i < 150:
+        if cumu_bytes[i] >= 300000*8/1000/1000:
+            sat_num[1] += 1
+        # else:
+        #     if cumu_bytes[i] >= 600000*8/1000/1000:
+        #         sat_num[2] += 1
+    print(sat_num)
+>>>>>>> d7468b07b285a3e20cccb08ca9a4dc3540b42e66
 
     plt.bar(range(len(cumu_bytes)), cumu_bytes, color='green')
     plt.xlabel('UE ID')
     plt.ylabel('Throughput (Mbps)')
     plt.title('Per UE Throughput ' + scheme_to_plot[:-1])
+<<<<<<< HEAD
     plt.xticks(range(len(cumu_bytes)), [i+1 for i in range(len(cumu_bytes))])
     # plot a line: y = x
     target = [(i+1)*5 for i in range(len(cumu_bytes))]
@@ -303,6 +334,12 @@ for scheme_to_plot in schemes_to_plot:
     # plt.axhline(y=100000*8/1000/1000, color='r', linestyle='--') # 12500 * 8
     # plt.axhline(y=300000*8/1000/1000, color='r', linestyle='--') # 37500 * 8
     # plt.axhline(y=600000*8/1000/1000, color='r', linestyle='--') # 75000 * 8
+=======
+    plt.xticks(tick_positions, tick_labels)
+    # plt.axhline(y=100000*8/1000/1000, color='r', linestyle='-') # 12500 * 8
+    plt.axhline(y=300000*8/1000/1000, color='r', linestyle='-') # 37500 * 8
+    # plt.axhline(y=600000*8/1000/1000, color='r', linestyle='-') # 75000 * 8
+>>>>>>> d7468b07b285a3e20cccb08ca9a4dc3540b42e66
     #plt.ylim([0, 100000])
     plt.savefig("per_ue_throughput_" + scheme_to_plot[1:-1] + FTYPE )
     plt.show()

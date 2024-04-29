@@ -80,7 +80,8 @@ class ENodeB : public NetworkNode {
     DLScheduler_VOGEL,
     DLSScheduler_MAXCELL_FAIRNESS,
     DLSScheduler_MAXCELL_MLWDF,
-    DLSScheduler_HETEROGENOUS
+    DLSScheduler_HETEROGENOUS,
+    DLSScheduler_MAXCELL_WITH_GBR_CAP 
   };
   enum ULSchedulerType {
     ULScheduler_TYPE_MAXIMUM_THROUGHPUT,

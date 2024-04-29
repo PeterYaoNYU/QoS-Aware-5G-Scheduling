@@ -1,6 +1,4 @@
-/* 
- * By Jiajin
- * project: RadioSaber; Mode: C++
+/* project: RadioSaber; Mode: C++
  * Copyright (c) 2021, 2022, 2023, 2024 University of Illinois Urbana Champaign
  *
  * This file is part of RadioSaber, which is a project built upon LTE-Sim in 2022
@@ -21,15 +19,12 @@
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
 
-#ifndef DOWNLINKHETEROGENOUSSCHEDULER_H_
-#define DOWNLINKHETEROGENOUSSCHEDULER_H_
 
 #include <vector>
-#include <map>
 #include <deque>
 #include "packet-scheduler.h"
 
-class DownlinkHeterogenousScheduler : public PacketScheduler {
+class DownlinkMaxcellGBRCapScheduler : public PacketScheduler {
  private:
   // below use customizable scheduler params
   int num_slices_ = 1;
@@ -38,27 +33,38 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   std::vector<SchedulerAlgoParam> slice_algo_params_;
   std::vector<int> slice_priority_;
   std::vector<double> slice_rbs_offset_;
-  
-  // Jiajin: initialize pre_defined_gbr as an array of 0 with size of 11. 11 is the number of UEs in the experiment
-  // Initialize as (5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55) * 125 = (625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250, 6875)
-  std::vector<double> pre_defined_gbr_ = {625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250}; // 10 UEs
-  //std::vector<double> pre_defined_gbr_ = {1250, 2500, 3750, 5000, 6250, 7500, 8750, 10000}; //, 11250, 12500}; // 10 UEs
 
+  // Peter: Keep a running score to measure how well each request is satisfied. 
+  std::vector<double> slice_score_;
+
+  // Peter: Store the result of the score to a file
+  void logScore();
 
   const double beta_ = 0.1;
+  int inter_sched_ = 0;
 
   // Charlie: the inter-slice scheduling metric (objective)
   // peter: a function pointer that points to the inter slice algorithm
-  double (*inter_metric_)(UserToSchedule*, int);
+  double (*inter_metric_)(UserToSchedule*, int, int);
+
+  // peter: count the weight of different slices
+  std::vector<double> inter_algo_weight_count_;
+
+  // peter: a flag indicating whether the inter-slice scheduling is in mix mode
+  int mix_mode = 0;
 
   // Peter: Sliding window to keep track of how many RBs have been allocated to each UE already
   const int WINDOW_SIZE = 1000;
   int num_windows_; 
   std::vector<std::deque<double>> allocation_logs_;
 
+  std::vector<int> zero_request_ues_;
+
+
+
  public:
-  DownlinkHeterogenousScheduler(std::string config_fname);
-  virtual ~DownlinkHeterogenousScheduler();
+  DownlinkMaxcellGBRCapScheduler(std::string config_fname, int algo, int metric);
+  virtual ~DownlinkMaxcellGBRCapScheduler();
 
   void SelectFlowsToSchedule();
 
@@ -69,11 +75,5 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   virtual double ComputeSchedulingMetric(UserToSchedule* user,
                                          double spectralEfficiency);
   void UpdateAverageTransmissionRate(void);
-
-  // Jiajin add
-  std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate); // byDDL or byGBR: from min to max
-  //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
-
 };
 
-#endif /* DOWNLINKHETEROGENOUSSCHEDULER_H_ */

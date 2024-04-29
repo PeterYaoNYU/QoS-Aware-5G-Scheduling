@@ -99,6 +99,12 @@ DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
   slice_rbs_offset_.resize(num_slices_); 
   std::fill(slice_rbs_offset_.begin(), slice_rbs_offset_.end(), 0);
 
+
+  // [Peter] Initialize the sliding window number, and reserve the corresponding deque space
+  num_windows_ = user_to_slice_.size();
+  fprintf(stderr, "num_windows_: %d\n", num_windows_);
+  allocation_logs_.resize(num_windows_);
+
   SetMacEntity(0);
   CreateUsersToSchedule();
 }
@@ -457,7 +463,19 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
   } 
 
-  vector<int> request_users = GetSortedUEsIDbyQoS(user_request_map); // TODO: maybe later, each slice can decide its own serving order of UEs
+
+  // [Peter]: for each TTI,push in a 0 value to each empty deque, and pop out the oldest value
+  // If the length of the deque exceeds the windows size. 
+  for (int i = 0; i < num_windows_; i++) {
+    allocation_logs_[i].push_back(0);
+    if (allocation_logs_[i].size() > WINDOW_SIZE) {
+      allocation_logs_[i].pop_front();
+    }  
+  }
+
+  // Peter: comment: maybe sort by request only is not a good idea, take QoS into consideration later
+  vector<int> request_users = GetSortedUEsIDbyQoS(user_request_map, allocation_logs_, 100000, available_rbs.size()); // TODO: maybe later, each slice can decide its own serving order of UEs
+
 
 
   // ========== RB Allocation ==========
@@ -510,7 +528,22 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         // }
       }
       request_rate -= metrics[target_rb_id][user_id];
+<<<<<<< HEAD
       std::cerr << "allocated rb_id: " << target_rb_id << " rate: " << metrics[target_rb_id][user_id] << std::endl;
+=======
+      // peter: update the allocation_logs_ for the user allocated the RB
+      double &allocated_bytes = allocation_logs_[user_id].back();
+      allocated_bytes += metrics[target_rb_id][user_id];
+
+      double waste = 0;
+      if (request_rate < 0)
+      {
+        waste = -request_rate;
+      }
+      fprintf(stderr, "user_id: %d, cumulative allocated_bytes at this TTI: %f, size of this rbg: %f, waste of this rbg is: %f\n", user_id, allocated_bytes, metrics[target_rb_id][user_id], waste);
+
+      //std::cerr << "allocated rb_id: " << target_rb_id << " rate: " << metrics[target_rb_id][user_id] << std::endl;
+>>>>>>> d7468b07b285a3e20cccb08ca9a4dc3540b42e66
       int l = target_rb_id * rbg_size, r = (target_rb_id + 1) * rbg_size;
       // fprintf(stderr, "user_id: %d, rb_id: %d\n", user_id, l);
       for (int j = l; j < r; ++j) {
@@ -637,23 +670,73 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 // Jiajin add
 // input: all users to be scheduled
 // return: sorted list of delay-sensitive users by increasing DDL
+// Peter add
+// input: all users to be scheduled, allocation history window, threshould
+// return: sorted list of delay-sensitive users by increasing DDL, qualified if reuqest larger than the given threshold
 bool sortByVal(const std::pair<int, double> &a, const std::pair<int, double> &b) {
     //return a.second < b.second; // sort by increasing order of delay
     return a.second > b.second; // sort by decreasing order of delay
 }
 
-vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map) {
+bool sortByValDesc(const std::pair<int, double> &a, const std::pair<int, double> &b) {
+    return a.second > b.second; // sort by decreasing order of delay
+}
+
+vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate) {
+
+    // Peter: calculate the sum of the allocation logs
+    vector<double> allocate_sum_hist;
+    allocate_sum_hist.resize(num_windows_);
+    std::fill(allocate_sum_hist.begin(), allocate_sum_hist.end(), 0);
+    for (int i = 0; i < num_windows_; i++) {
+      for (int j = 0; j < allocation_logs[i].size(); j++) {
+        allocate_sum_hist[i] += allocation_logs[i][j];
+      }
+    }
+
+    // peter: caluclate the requested rate of each user
+
+
     // Convert map to a vector of pairs for sorting
     vector<pair<int, double>> user_delay_pair(user_qos_map.begin(), user_qos_map.end());
 
+    // peter: filtered user delay pair
+    vector<pair<int, double>> filtered_user_delay_pair;
+ 
+    // peter: filter out those users whose allocation is less than the threshold
+    for (const auto &pair : user_delay_pair) {
+      int user_id = pair.first;
+      double request_rate = WINDOW_SIZE * pair.second - allocate_sum_hist[user_id];
+      if (request_rate >= threshold) {
+        filtered_user_delay_pair.push_back(std::make_pair(user_id, request_rate));
+      } else {
+        fprintf(stderr, "User %d requesting rate: %f is less than the threshold: %f\n", user_id, request_rate, threshold);
+      }
+    }
+
+    fprintf(stderr, "filtered_user_delay_pair.size(): %d\n", filtered_user_delay_pair.size());
+
     // Sort the vector by increasing order of its pair's second value
     // TODO: try GBR from max to min later
-    sort(user_delay_pair.begin(), user_delay_pair.end(), sortByVal);
+    sort(filtered_user_delay_pair.begin(), filtered_user_delay_pair.end(), sortByVal);
+
+    for (int i = 0; i < filtered_user_delay_pair.size(); i++) {
+      fprintf(stderr, "user_id: %d, request_rate: %f\n", filtered_user_delay_pair[i].first, filtered_user_delay_pair[i].second);
+    }
 
     // Extract sorted user IDs from sorted pair vector
     vector<int> sorted_selected_users_ids;
-    for (const auto &pair : user_delay_pair) {
+    for (const auto &pair : filtered_user_delay_pair) {
         sorted_selected_users_ids.push_back(pair.first);
+    }
+
+    // to accomodate for the situation where there is a surplus of rbgs after the filtering operation
+    if (sorted_selected_users_ids.size() < total_rbgs_to_allocate) {
+      fprintf(stderr, "Warning: the number of users requesting rate larger than the threshold is less than the number of rbgs to allocate\n");
+      sort(user_delay_pair.begin(), user_delay_pair.end(), sortByValDesc);
+      for (int j = 0; j < total_rbgs_to_allocate - sorted_selected_users_ids.size(); j++) {
+        sorted_selected_users_ids.push_back(user_delay_pair[j].first);
+      }
     }
 
     return sorted_selected_users_ids;
