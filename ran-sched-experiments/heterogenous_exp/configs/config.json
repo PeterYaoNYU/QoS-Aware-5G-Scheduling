@@ -2,44 +2,17 @@
   "slices":
   [
     {
-      "n_slices": 5, "weight": 0.05,
+      "n_slices": 1, "weight": 1,
       "video_app": 0, "video_bitrate": 0,
       "internet_flow": 0, "if_bitrate": 0,
       "backlog_flow": 1,
-      "gbr": 10000,
+      "gbr": 100,
       "max_delay": 0,
-      "algo_alpha": 0, "algo_beta": 0, "algo_epsilon": 1, "algo_psi": 0, "type": 2
-    },
-    {
-      "n_slices": 5, "weight": 0.05,
-      "video_app": 0, "video_bitrate": 0,
-      "internet_flow": 0, "if_bitrate": 0,
-      "backlog_flow": 1,
-      "gbr": 10000,
-      "max_delay": 0,
-      "algo_alpha": 0, "algo_beta": 0, "algo_epsilon": 1, "algo_psi": 0, "type": 2
-    },
-    {
-      "n_slices": 5, "weight": 0.05,
-      "video_app": 0, "video_bitrate": 0,
-      "internet_flow": 0, "if_bitrate": 0,
-      "backlog_flow": 1,
-      "gbr": 10000,
-      "max_delay": 0,
-      "algo_alpha": 0, "algo_beta": 0, "algo_epsilon": 1, "algo_psi": 0, "type": 2
-    },
-    {
-      "n_slices": 5, "weight": 0.05,
-      "video_app": 0, "video_bitrate": 0,
-      "internet_flow": 0, "if_bitrate": 0,
-      "backlog_flow": 1,
-      "gbr": 10000,
-      "max_delay": 0,
-      "algo_alpha": 0, "algo_beta": 0, "algo_epsilon": 1, "algo_psi": 0, "type": 2
+      "algo_alpha": 0, "algo_beta": 0, "algo_epsilon": 1, "algo_psi": 0, "type": 3
     }
   ],
   "ues_per_slice":
   [
-    30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30
+    10
   ]
 }

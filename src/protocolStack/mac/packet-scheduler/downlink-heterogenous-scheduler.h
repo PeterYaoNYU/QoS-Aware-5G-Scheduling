@@ -37,6 +37,12 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   std::vector<SchedulerAlgoParam> slice_algo_params_;
   std::vector<int> slice_priority_;
   std::vector<double> slice_rbs_offset_;
+  
+  // Jiajin: initialize pre_defined_gbr as an array of 0 with size of 11. 11 is the number of UEs in the experiment
+  // Initialize as (5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55) * 125 = (625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250, 6875)
+  std::vector<double> pre_defined_gbr_ = {625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250}; // 10 UEs
+  //std::vector<double> pre_defined_gbr_ = {1250, 2500, 3750, 5000, 6250, 7500, 8750, 10000}; //, 11250, 12500}; // 10 UEs
+
 
   const double beta_ = 0.1;
 

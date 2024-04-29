@@ -9,8 +9,8 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR= "configs"#"less_ue"
 FTYPE=".pdf"
-n_users= 225 #600 #450
-n_slices = 15 #20 #20
+n_users= 225#400 #225 #600 #450
+n_slices = 15#20 #15 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
@@ -213,7 +213,7 @@ def plot_together():
     bwerr_array = [ np.std(sum_throughput['single']), np.std(sum_throughput['nvs']), np.std(sum_throughput['maxcell']) ]
     # rate_per_ue = [bw_array[0] / avg_rbs['single'], bw_array[1] / avg_rbs['nvs'], bw_array[2] / avg_rbs['maxcell']]
     # print("rate_per_ue[ours, nvs, maxcell]: ", rate_per_ue)
-    scheme_array = [ "No-Slicing", "NVS", "RadioSaber" ]
+    scheme_array = [ "Ours", "NVS", "RadioSaber" ]
     barlist = ax[2].bar( x_array, bw_array, width = 0.3 )
     for i in range(3):
         barlist[i].set_color(COLORS[i])

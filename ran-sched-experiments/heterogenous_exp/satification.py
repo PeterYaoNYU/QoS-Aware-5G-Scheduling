@@ -9,8 +9,8 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR="configs"
 FTYPE=".pdf"
-n_users= 225 #600 #450
-n_slices = 15 #20 #20
+n_users= 225#400 #225 #600 #450
+n_slices = 15#20 #15 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
@@ -270,5 +270,5 @@ plt.axhline(y=12500, color='r', linestyle='-')
 plt.axhline(y=37500, color='r', linestyle='-')
 plt.axhline(y=75000, color='r', linestyle='-')
 plt.ylim([0, 100000])
-plt.savefig("per_ue_throughput" + FTYPE )
+#plt.savefig("per_ue_throughput" + FTYPE )
 plt.show()

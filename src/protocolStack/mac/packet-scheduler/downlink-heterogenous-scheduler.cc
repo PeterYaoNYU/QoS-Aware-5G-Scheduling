@@ -433,7 +433,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       //double packet_size = bearer->GetMacQueue()->Peek().GetSize(); // To Check: whether the pkt is a whole
       int accumlated_bytes = bearer->GetMacQueue()->GetQueueSize();
       user_request_map.insert(make_pair(user_id, accumlated_bytes / delay));
-      std::cerr << GetTimeStamp() << " user_id: " << user_id << " accumlated_bytes: " << accumlated_bytes << " delay: " << delay << " request_rate: " << accumlated_bytes / delay << std::endl;
+      //std::cerr << GetTimeStamp() << " user_id: " << user_id << " accumlated_bytes: " << accumlated_bytes << " delay: " << delay << " request_rate: " << accumlated_bytes / delay << std::endl;
     }
     else if (slice_algo_params_[slice_id].type == 2) // filter those GBR UEs
     {
@@ -444,9 +444,16 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       user_request_map.insert(make_pair(user_id, gbr));
       // std::cerr << GetTimeStamp() << " user_id: " << user_id << " request_rate: " << gbr << std::endl;
     }
+    else if (slice_algo_params_[slice_id].type == 3) //  for Jiajin experiment test
+    {
+      assert(slice_algo_params_[slice_id].type == 3);
+      int gbr = int(pre_defined_gbr_[user_id]);
+      user_request_map.insert(make_pair(user_id, gbr));
+      // std::cerr << GetTimeStamp() << " user_id: " << user_id << " request_rate: " << gbr << std::endl;
+    }
     else{
       user_be.push_back(user_id);
-      std::cerr << GetTimeStamp() << " user_id: " << user_id << " best effort" << std::endl;
+      //std::cerr << GetTimeStamp() << " user_id: " << user_id << " best effort" << std::endl;
     }
   } 
 
@@ -469,10 +476,10 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
     // rb allocation based on request
     double request_rate = user_request_map[user_id];
-    //std::cerr << "slice_id: " << slice_id << " user_id:" << user_id << " request_rate:" << request_rate << std::endl;
+    std::cerr << "slice_id: " << slice_id << " user_id:" << user_id << " request_rate:" << request_rate << std::endl;
     while (request_rate > 0 && slice_allocated_rbs[slice_id] < slice_quota_rbgs[slice_id])
     {
-      // find those situtable RBs
+      // find those suitable RBs
       int target_rb_id = -1;
       int max_rate_rb_id = 0;
       double min_residual_rate = std::numeric_limits<double>::max();
@@ -503,7 +510,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         // }
       }
       request_rate -= metrics[target_rb_id][user_id];
-      //std::cerr << "allocated rb_id: " << target_rb_id << " rate: " << metrics[target_rb_id][user_id] << std::endl;
+      std::cerr << "allocated rb_id: " << target_rb_id << " rate: " << metrics[target_rb_id][user_id] << std::endl;
       int l = target_rb_id * rbg_size, r = (target_rb_id + 1) * rbg_size;
       // fprintf(stderr, "user_id: %d, rb_id: %d\n", user_id, l);
       for (int j = l; j < r; ++j) {
@@ -534,6 +541,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       //   break;
       // }
     }
+    std::cerr << " final_request_rate: " << request_rate << std::endl;
   } 
   // for those unsatisfied in the previous stage, try to allocate RBs to them. TODO: may do not need it, becasue these RBs can also be shared by UEs in their slice.
 
@@ -552,12 +560,21 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   std::cout << GetTimeStamp() << std::endl;
   for (auto it = users->begin(); it != users->end(); it++) {
     UserToSchedule* ue = *it;
+
+    int ueid = ue->GetUserID();
+    std::cerr<< GetTimeStamp() << "ueid: " << ueid << std::endl;
+
     if (ue->GetListOfAllocatedRBs()->size() > 0) {
       std::vector<double> estimatedSinrValues;
 
-      // std::cerr << "User(" << ue->GetUserID() << ") allocated RBGS:";
+      std::cerr << "For calculation: User " << ue->GetUserID() << " allocated RBGs total_metric_values: ";
+      int total_metric_values = 0;
       for (size_t i = 0; i < ue->GetListOfAllocatedRBs()->size(); i++) {
         int rbid = ue->GetListOfAllocatedRBs()->at(i);
+        if (rbid % 8 == 0){
+          total_metric_values += metrics[int(rbid / 8)][ueid] * 8;
+          //std::cerr<< GetTimeStamp() << "Actual Allocate rbid: " << int(rbid / 4) << " metric:" << metrics[rbid][ueid] << std::endl;
+        }
 
         // fprintf(stderr, "rbid: %d\n", rbid);
         // fprintf(stderr, "ue->GetCqiFeedbacks().size(): %d\n", ue->GetCqiFeedbacks().size());
@@ -572,12 +589,13 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
             ue->GetCqiFeedbacks().at(ue->GetListOfAllocatedRBs()->at(i)));
         estimatedSinrValues.push_back(sinr);
       }
+      std::cerr << total_metric_values;
 
-      // std::cerr << "finish getting the cqi" << std::endl;
+      //std::cerr << "finish getting the cqi" << std::endl;
       double effectiveSinr = GetEesmEffectiveSinr(estimatedSinrValues);
-      // std::cerr << " final_cqi: " << amc->GetCQIFromSinr(effectiveSinr)
-                // << std::endl;
+      //std::cerr << " final_cqi: " << amc->GetCQIFromSinr(effectiveSinr) << std::endl;
       int mcs = amc->GetMCSFromCQI(amc->GetCQIFromSinr(effectiveSinr));
+      //std::cerr << " mcs:" << mcs << " ue->GetListOfAllocatedRBs()->size():" << ue->GetListOfAllocatedRBs()->size() << std::endl;
       int transportBlockSize =
           amc->GetTBSizeFromMCS(mcs, ue->GetListOfAllocatedRBs()->size());
 
@@ -589,7 +607,10 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
             amc->GetMCSFromCQI(amc->GetCQIFromSinr(estimatedSinrValues[i])), 1);
       }
 #endif
-      ue->UpdateAllocatedBits(transportBlockSize);
+      std::cerr << " actual_allocated_bits:" << transportBlockSize << std::endl;
+
+      std::cerr << "User(" << ue->GetUserID() << ") UpdateAllocatedBits:" << transportBlockSize << std::endl;
+      ue->UpdateAllocatedBits(transportBlockSize); // unit: bits
       for (size_t rb = 0; rb < ue->GetListOfAllocatedRBs()->size(); rb++) {
         pdcchMsg->AddNewRecord(PdcchMapIdealControlMessage::DOWNLINK,
                                ue->GetListOfAllocatedRBs()->at(rb),
@@ -617,8 +638,8 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 // input: all users to be scheduled
 // return: sorted list of delay-sensitive users by increasing DDL
 bool sortByVal(const std::pair<int, double> &a, const std::pair<int, double> &b) {
-    return a.second < b.second; // sort by increasing order of delay
-    //return a.second > b.second; // sort by decreasing order of delay
+    //return a.second < b.second; // sort by increasing order of delay
+    return a.second > b.second; // sort by decreasing order of delay
 }
 
 vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map) {
@@ -637,7 +658,6 @@ vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> 
 
     return sorted_selected_users_ids;
 }
-
 
 // Jiajin NOTE: actually unused
 double DownlinkHeterogenousScheduler::ComputeSchedulingMetric(
