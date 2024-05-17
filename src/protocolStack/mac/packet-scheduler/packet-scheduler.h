@@ -39,13 +39,23 @@ struct SchedulerAlgoParam {
   int beta;
   int epsilon;
   int psi;
-  SchedulerAlgoParam(int _alpha, int _beta, int _epsilon, int _psi) {
+  int type;  // Jiajin add: 1. Delay sensitive; 2. Guaranteed Bit Rate; 3. Best-Effort
+  SchedulerAlgoParam(int _alpha, int _beta, int _epsilon, int _psi, int _type = 2) { // Jiajin modify
     alpha = _alpha;
     beta = _beta;
     epsilon = _epsilon;
     psi = _psi;
+    type = _type; // Jiajin add
   }
 };
+
+// // Peter
+// struct SchedulerAlgoParam {
+//   int type; // 1. Delay sensitive; 2. Guaranteed Bit Rate; 3. Best-Effort
+//   SchedulerAlgoParam(int _type = 2) { 
+//     type = _type;
+//   }
+// };
 
 class PacketScheduler {
  public:
@@ -95,11 +105,14 @@ class PacketScheduler {
     std::vector<int> m_listOfAllocatedRBs;
     int m_wideBandCQI;
     std::vector<int> m_cqiFeedbacks;
+    std::vector<int> m_sorted_rbg_ids; //Jiajin add: sort RBG in decreasing order of CQI
+    std::vector<int> m_listOfAllocatedRBGs; //Jiajin add: store the allocated RBGs
 
    public:
     RadioBearer* m_bearers[MAX_BEARERS];
     int m_dataToTransmit[MAX_BEARERS];
     int m_requiredRBs;
+    int m_lowerbound_sorted_idx; //Jiajin add: the lowerbound idx in sorted_RB, not the id of RB
     UserToSchedule(int, NetworkNode*);
     virtual ~UserToSchedule();
 
@@ -116,9 +129,13 @@ class PacketScheduler {
     int GetRequiredRBs(void);
     void SetCqiFeedbacks(std::vector<int>& cqiFeedbacks);
     std::vector<int>& GetCqiFeedbacks(void);
+    std::vector<int>& GetSortedRBGIds(void); //Jiajin add
 
     std::vector<int>* GetListOfAllocatedRBs();
     double GetAverageTransmissionRate();
+    std::vector<int>* GetListOfAllocatedRBGs(); //Jiajin add
+    int GetLowerBoundSortedIdx(); //Jiajin add
+    void SetLowerBoundSortedIdx(int idx); //Jiajin add
   };
 
   PacketScheduler();
