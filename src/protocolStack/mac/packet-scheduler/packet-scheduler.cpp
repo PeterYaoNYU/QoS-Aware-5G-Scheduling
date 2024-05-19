@@ -33,6 +33,7 @@
 #include "../../packet/packet-burst.h"
 #include "../../rlc/am-rlc-entity.h"
 #include "../mac-entity.h"
+#include <algorithm>
 
 PacketScheduler::PacketScheduler() {
   m_mac = NULL;
@@ -324,10 +325,26 @@ std::vector<double>& PacketScheduler::UserToSchedule::GetSpectralEfficiency(
 void PacketScheduler::UserToSchedule::SetCqiFeedbacks(
     std::vector<int>& cqiFeedbacks) {
   m_cqiFeedbacks = cqiFeedbacks;
+  // Jiajin add:
+  // sort the RBs in decreasing order of CQI
+  m_sorted_rbg_ids.clear();
+  int rbg_size = get_rbg_size(m_cqiFeedbacks.size());
+  int n_rbg = m_cqiFeedbacks.size() / rbg_size;
+  for (int i = 0; i < n_rbg; i++) {
+    m_sorted_rbg_ids.push_back(i);
+  }
+  std::sort(m_sorted_rbg_ids.begin(), m_sorted_rbg_ids.end(),
+            [this, rbg_size](int a, int b) { return m_cqiFeedbacks[a * rbg_size] > m_cqiFeedbacks[b * rbg_size]; });
+
 }
 
 std::vector<int>& PacketScheduler::UserToSchedule::GetCqiFeedbacks(void) {
   return m_cqiFeedbacks;
+}
+
+// Jiajin add
+std::vector<int>& PacketScheduler::UserToSchedule::GetSortedRBGIds(void) {
+  return m_sorted_rbg_ids;
 }
 
 void PacketScheduler::UserToSchedule::SetWidebandCQI(int cqi) {
@@ -340,6 +357,21 @@ int PacketScheduler::UserToSchedule::GetWidebandCQI() {
 
 std::vector<int>* PacketScheduler::UserToSchedule::GetListOfAllocatedRBs() {
   return &m_listOfAllocatedRBs;
+}
+
+// Jiajin add
+std::vector<int>* PacketScheduler::UserToSchedule::GetListOfAllocatedRBGs() {
+  return &m_listOfAllocatedRBGs;
+}
+
+// Jiajin add
+int PacketScheduler::UserToSchedule::GetLowerBoundSortedIdx() {
+  return m_lowerbound_sorted_idx;
+}
+
+// Jiajin add
+void PacketScheduler::UserToSchedule::SetLowerBoundSortedIdx(int idx) {
+  m_lowerbound_sorted_idx = idx;
 }
 
 double PacketScheduler::UserToSchedule::GetAverageTransmissionRate() {

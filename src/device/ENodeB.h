@@ -81,7 +81,8 @@ class ENodeB : public NetworkNode {
     DLSScheduler_MAXCELL_FAIRNESS,
     DLSScheduler_MAXCELL_MLWDF,
     DLSScheduler_RANDOM, //Peter: Baseline of variance
-    DLSScheduler_MIX // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
+    DLSScheduler_MIX, // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
+    DLScheduler_HETEROGENOUS
   };
   enum ULSchedulerType {
     ULScheduler_TYPE_MAXIMUM_THROUGHPUT,

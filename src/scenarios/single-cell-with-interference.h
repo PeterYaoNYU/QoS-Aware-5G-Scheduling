@@ -131,6 +131,10 @@ static void SingleCellWithInterference(double radius, int sched_type,
       downlink_scheduler_type = ENodeB::DLSScheduler_MIX;
       std::cout << "Scheduler Mix" << std::endl;
       break;
+    case 100:
+      downlink_scheduler_type = ENodeB::DLScheduler_HETEROGENOUS;
+      std::cout << "Scheduler Heterogenous" << std::endl;
+      break;
     default:
       string error_log = "Undefined Scheduler: " + std::to_string(sched_type);
       throw std::runtime_error(error_log);
