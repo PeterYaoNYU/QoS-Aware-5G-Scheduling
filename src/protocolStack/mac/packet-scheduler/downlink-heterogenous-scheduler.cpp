@@ -523,10 +523,11 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     std::cerr << std::endl;
   }
 
+  std::cerr << "==== Allocation Begins ====" << std::endl;
   std::vector<pair<int, int>> satisfied_users;
   // int ue_satisfied[nb_rbgs]; // 1: satisfied, 0: not satisfied
   int ue_satisfied[users->size()];
-  for (int i = 0; i < nb_rbgs; i++) {
+  for (int i = 0; i < users->size(); i++) {
     ue_satisfied[i] = 0;
   }
   for (int i = 0; i < user_requestRB_pair.size(); i++) {
@@ -541,6 +542,12 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     // iterate sorted rbgid_impact_pair, find the suitable RBs for the UE
     for (int j = 0; j < nb_rbgs; j++) {
       int rbg_id = rbgid_impact_pair[j].first;
+      if (rbg_availability[rbg_id] == 1) {
+        std::cerr << " RBG: " << rbg_id << " is available for UE: " << user_id << std::endl;
+      }
+      if (metrics[rbg_id][user_id] == 1) {
+        std::cerr << " RBG: " << rbg_id << " is wanted by UE: " << user_id << std::endl;
+      }
       if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
         std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
         int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
@@ -699,7 +706,10 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     UserToSchedule* ue = *it;
 
     int ueid = ue->GetUserID();
-    std::cerr<< GetTimeStamp() << "ueid: " << ueid << std::endl;
+    std::cerr<< GetTimeStamp() << " ueid: " << ueid << std::endl;
+    if (ue->GetListOfAllocatedRBs()->size() <= 0) {
+      std::cerr << ueid << " this user does not get allocated any RB" << std::endl;
+    }
 
     if (ue->GetListOfAllocatedRBs()->size() > 0) {
       std::vector<double> estimatedSinrValues;
