@@ -425,16 +425,6 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     int request = int(pre_defined_gbr_[user->GetUserID()]) * 1000 * 1000 / 1000; // Mbps -> bits per TTI // TODO: check the User ID
     std::cerr << "== user_id: " << user->GetUserID() << ", request:" << request << " ==" << std::endl;
     // find the min number of RB required
-    // the sorted order is from the best RB to the worst, then determine how many
-    // "best" RB is needed for this UE to satisfy its requests. 
-    /*
-    * @param num_RBG: the min number of RBG required for this UE
-    * @param user_requestRB_pair: the vector of pairs of User ID and the min RBG count required 
-    * @param lower_bound_idx: the lowest idx such that all previous resource blocks combined is enought to satify the requirement
-    * @param rbgid_impact_pair: the number of UEs that this RBG may be suitable for
-    * @param rbg_impact_ues: a map for the list of UEs that are impacted by this RBG
-    * 
-    */
     while (available_TBSize < request) { 
       std::cerr << "  available_TBSize= " << available_TBSize << " < request=" << request << std::endl;
       num_RBG += 1; 
@@ -452,8 +442,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       available_TBSize = EstimateTBSizeByEffSinr(estimatedSinrValues, num_RBG, rbg_size);
       std::cerr << "  EstimateTBSizeByEffSinr() available_TBSize= " << available_TBSize << ", num_RBG=" << num_RBG << std::endl;
     }
-    //user.SetRequiredRBs(num_RBG); // min number of RB required; num_RB=nb_rbgs+1 is possible, which means cannot be satisfied
-    // pop the last one off, and insert a new one to get a new estimate.  
+    //user.SetRequiredRBs(num_RBG); // min number of RB required; num_RB=nb_rbgs+1 is possible, which means cannot be satisfied 
     if (request > 0 && num_RBG <= nb_rbgs){
       user_requestRB_pair.push_back(std::make_pair(user->GetUserID(), num_RBG));
       std::cerr << "  final: user->GetUserID()=" << user->GetUserID() << ", num_RBG=" << num_RBG << std::endl;
@@ -510,7 +499,6 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   for (int i = 0; i < user_requestRB_pair.size(); i++) {
     std::cerr << "user_id: " << user_requestRB_pair[i].first << ", num_RBG_needed: " << user_requestRB_pair[i].second << std::endl;
   }
-  // print stats about the number of UEs that the RBG has an impact on, as well as the specific list 
   std::cerr << "==== rbgid_impact_pair ====" << std::endl;
   for (int i = 0; i < nb_rbgs; i++) {
     int rb_idx = rbgid_impact_pair[i].first;
@@ -523,11 +511,9 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     std::cerr << std::endl;
   }
 
-  std::cerr << "==== Allocation Begins ====" << std::endl;
   std::vector<pair<int, int>> satisfied_users;
-  // int ue_satisfied[nb_rbgs]; // 1: satisfied, 0: not satisfied
-  int ue_satisfied[users->size()];
-  for (int i = 0; i < users->size(); i++) {
+  int ue_satisfied[nb_rbgs]; // 1: satisfied, 0: not satisfied
+  for (int i = 0; i < nb_rbgs; i++) {
     ue_satisfied[i] = 0;
   }
   for (int i = 0; i < user_requestRB_pair.size(); i++) {
@@ -542,12 +528,6 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     // iterate sorted rbgid_impact_pair, find the suitable RBs for the UE
     for (int j = 0; j < nb_rbgs; j++) {
       int rbg_id = rbgid_impact_pair[j].first;
-      if (rbg_availability[rbg_id] == 1) {
-        std::cerr << " RBG: " << rbg_id << " is available for UE: " << user_id << std::endl;
-      }
-      if (metrics[rbg_id][user_id] == 1) {
-        std::cerr << " RBG: " << rbg_id << " is wanted by UE: " << user_id << std::endl;
-      }
       if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
         std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
         int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
@@ -569,7 +549,6 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
   }
   // print those unallocated RB
-  // TODO: Allocate those unallocated RBGs
   std::cerr << "==== unallocated RBs ====" << std::endl;
   for (int i = 0; i < nb_rbgs; i++) {
     int rbg_id = rbgid_impact_pair[i].first;
@@ -706,10 +685,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     UserToSchedule* ue = *it;
 
     int ueid = ue->GetUserID();
-    std::cerr<< GetTimeStamp() << " ueid: " << ueid << std::endl;
-    if (ue->GetListOfAllocatedRBs()->size() <= 0) {
-      std::cerr << ueid << " this user does not get allocated any RB" << std::endl;
-    }
+    std::cerr<< GetTimeStamp() << "ueid: " << ueid << std::endl;
 
     if (ue->GetListOfAllocatedRBs()->size() > 0) {
       std::vector<double> estimatedSinrValues;
