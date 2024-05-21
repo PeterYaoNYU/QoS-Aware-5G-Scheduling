@@ -204,13 +204,40 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
     case 4:
       mix_mode = 1;
       break;
+    case 5: //radiosaber with a cap
+      inter_metric_ = &maxThroughputMetric;
+      cap = 1;
+      break;
     default:
       throw std::runtime_error("Error: invalid inter-slice metric (objective)");
       break;
   }
 
+  // initialize the gbr_bits_per_TTI vector
+  if (cap == 1)
+  {
+    for (auto iter = pre_defined_gbr_.begin(); iter != pre_defined_gbr_.end(); iter ++)
+    {
+      int request = int(*iter) * 1000 * 1000 / 1000;
+      pre_defined_gbr_bits_per_second.push_back(request);
+      std::cerr << "UE predefined gbr bits pers second: " << request << std::endl;
+    }
+  }
+
   SetMacEntity(0);
   CreateUsersToSchedule();
+}
+
+int DownlinkTransportScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int rbg_size) { 
+  int num_rbg = estimatedSinrValues.size();
+  if (num_rbg == 0) {
+    return 0;
+  }
+  AMCModule* amc = GetMacEntity()->GetAmcModule();
+  double effectiveSinr = GetEesmEffectiveSinr(estimatedSinrValues);
+  int mcs = amc->GetMCSFromCQI(amc->GetCQIFromSinr(effectiveSinr));
+  int transportBlockSize = amc->GetTBSizeFromMCS(mcs, num_rbg * rbg_size);
+  return transportBlockSize;
 }
 
 DownlinkTransportScheduler::~DownlinkTransportScheduler() {
@@ -549,6 +576,64 @@ static vector<int> MaximizeCell(double** flow_spectraleff,
   return rbg_to_slice;
 }
 
+static vector<int> MaximizeCellWithCap(double** flow_spectraleff,
+                                vector<int>& slice_quota_rbgs, int nb_rbgs,
+                                int nb_slices, int** user_index, 
+                                std::vector<bool>& rbg_availability, 
+                                std::map<int, std::vector<double>>& current_sinr_vals,
+                                AMCModule* amc, int rbg_size, 
+                                DownlinkTransportScheduler::UsersToSchedule* users,
+                                DownlinkTransportScheduler* downlink_transport_scheduler) {
+  // it's ok that the quota is negative
+  vector<coord_cqi_t> sorted_cqi;
+  vector<int> slice_rbgs(nb_slices, 0);
+  vector<int> rbg_to_slice(nb_rbgs, -1);
+  for (int i = 0; i < nb_rbgs; ++i)
+    for (int j = 0; j < nb_slices; ++j) {
+      sorted_cqi.emplace_back(coord_t(i, j), flow_spectraleff[i][j]);
+    }
+  std::sort(sorted_cqi.begin(), sorted_cqi.end(),
+            [](coord_cqi_t a, coord_cqi_t b) { return a.second > b.second; });
+  for (auto it = sorted_cqi.begin(); it != sorted_cqi.end(); ++it) {
+    int rbg_id = it->first.first;
+    int slice_id = it->first.second;
+    int user_id;
+    if (slice_rbgs[slice_id] < slice_quota_rbgs[slice_id] &&
+        rbg_to_slice[rbg_id] == -1) {
+      // peter: check if the guaranteed bit rate has already been reached by this UE. 
+      // if alreay reached, continue without allocation
+      // o/w allocate, and update the availability map
+      user_id = user_index[rbg_id][slice_id];
+      DownlinkTransportScheduler::UserToSchedule* user = users->at(user_id);
+      double sinr = amc->GetSinrFromCQI(user->GetCqiFeedbacks().at(rbg_id * rbg_size));
+      std::cerr<<" User id: " << user_id << " sinr val: " << sinr << " rbg id: " << rbg_id << std::endl;
+      auto current_user_sinr_vals = current_sinr_vals[user_id];
+      auto current_TBsize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(current_user_sinr_vals, rbg_size);
+
+      current_user_sinr_vals.push_back(sinr);
+      auto tentative_TBsize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(current_user_sinr_vals, rbg_size);
+      auto pre_defined_gbr = downlink_transport_scheduler->pre_defined_gbr_[user_id] * 1000 * 1000 / 1000; // Mbps -> bits per TTI
+      std::cerr << "user_id: " << user_id << " rbg_id: " << rbg_id << " tentative TB size " << tentative_TBsize << " predefined_gbr " << pre_defined_gbr << std::endl;
+      if (!(tentative_TBsize > current_TBsize && current_TBsize < pre_defined_gbr)){
+        std::cerr << "user_id: " << user_id << " rbg_id: " << rbg_id << " current TB size: " << current_TBsize << " tentative TB size: " << tentative_TBsize << " predefined GBR: " << pre_defined_gbr << " too much for this UE, or is degrading channel quality" << std::endl;
+        continue;
+      }
+      
+      rbg_to_slice[rbg_id] = slice_id;
+      slice_rbgs[slice_id] += 1;
+      rbg_availability[rbg_id] = false;
+      current_sinr_vals[user_id] = current_user_sinr_vals;
+    }
+  }
+  double sum_bits = 0;
+  for (int i = 0; i < nb_rbgs; ++i) {
+    sum_bits += flow_spectraleff[i][rbg_to_slice[i]];
+  }
+  fprintf(stderr, "all_bytes: %.0f\n",
+          sum_bits * 180 / 8 * 4);  // 4 for rbg_size
+  return rbg_to_slice;
+}
+
 // peter: I don't bother to understand this, nor do I think it important
 static vector<int> VogelApproximate(double** flow_spectraleff,
                                     vector<int>& slice_quota_rbgs, int nb_rbgs,
@@ -636,6 +721,11 @@ void DownlinkTransportScheduler::RBsAllocation() {
                    ->GetDlSubChannels()
                    .size();
   int rbg_size = get_rbg_size(nb_rbs);
+  // peter: clear all relevant data structures
+  std::vector<bool> rbg_availability(rbg_size, true);
+  std::map<int, std::vector<double>> current_sinr_vals;
+  std::cerr << "rbg_availability size: " << rbg_availability.size() << "current_sinr_vals size: " << current_sinr_vals.size() << std::endl;
+
   // currently nb_rbgs should be divisible
   nb_rbs = nb_rbs - (nb_rbs % rbg_size);
   assert(nb_rbs % rbg_size == 0);
@@ -813,6 +903,11 @@ void DownlinkTransportScheduler::RBsAllocation() {
       rbg_to_slice = RandomSelect(flow_spectraleff, slice_quota_rbgs, nb_rbgs,
                                   num_slices_);
       break;
+    case 6: //peter: maxcell with a cap for GBR
+      std::cerr << "running maxcell with a cap " << std::endl;
+      rbg_to_slice = MaximizeCellWithCap(flow_spectraleff, slice_quota_rbgs,
+                                      nb_rbgs, num_slices_, user_index, rbg_availability, current_sinr_vals, amc, rbg_size, users, this);
+      break;                          
     default:
       slice_rbgs =
           UpperBound(flow_spectraleff, slice_quota_rbgs, nb_rbgs, num_slices_);
@@ -820,21 +915,26 @@ void DownlinkTransportScheduler::RBsAllocation() {
   }
 
   // ToDo: Generalize the framework
-  if (inter_sched_ < 6) {
+  if (inter_sched_ <= 6) {
     for (size_t i = 0; i < rbg_to_slice.size(); ++i) {
       // Peter: Update each slice's running score
       // Peter: Change it to intra slice score instead of interslice score
       slice_score_[rbg_to_slice[i]] += metrics[i][user_index[i][rbg_to_slice[i]]];
 
-      int uindex = user_index[i][rbg_to_slice[i]];
-      assert(uindex != -1);
-      int sid = user_to_slice_[users->at(uindex)->GetUserID()];
-      // fprintf(stderr, "rbg %d to slice %d, %d\n", i, sid, rbg_to_slice[i]);
-      assert(sid == rbg_to_slice[i]);
-      slice_final_rbgs[sid] += 1;
-      int l = i * rbg_size, r = (i + 1) * rbg_size;
-      for (int j = l; j < r; ++j) {
-        users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
+      // peter: check if all has been allocated
+      if (rbg_to_slice[i] != -1) {
+        int uindex = user_index[i][rbg_to_slice[i]];
+        assert(uindex != -1);
+        int sid = user_to_slice_[users->at(uindex)->GetUserID()];
+        // fprintf(stderr, "rbg %d to slice %d, %d\n", i, sid, rbg_to_slice[i]);
+        assert(sid == rbg_to_slice[i]);
+        slice_final_rbgs[sid] += 1;
+        int l = i * rbg_size, r = (i + 1) * rbg_size;
+        for (int j = l; j < r; ++j) {
+          users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
+        }
+      } else {
+        std::cerr << "rbg_id: " << i << " not allocated yet " << std::endl;
       }
     }
   } else {

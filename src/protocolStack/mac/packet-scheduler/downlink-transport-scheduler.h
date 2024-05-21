@@ -11,7 +11,7 @@
  * RadioSaber is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU General Public License for ore details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -23,6 +23,7 @@
 #define DOWNLINKTRANSPORTSCHEDULER_H_
 
 #include <vector>
+#include <map>
 #include "packet-scheduler.h"
 
 class DownlinkTransportScheduler : public PacketScheduler {
@@ -53,7 +54,8 @@ class DownlinkTransportScheduler : public PacketScheduler {
 
   // peter: a flag indicating whether the inter-slice scheduling is in mix mode
   int mix_mode = 0;
-
+  // peter: if cap is set to 1, stop allocating when enough has been allocated through maxcell
+  int cap = 0;
 
  public:
   DownlinkTransportScheduler(std::string config_fname, int algo, int metric);
@@ -68,6 +70,12 @@ class DownlinkTransportScheduler : public PacketScheduler {
   virtual double ComputeSchedulingMetric(UserToSchedule* user,
                                          double spectralEfficiency);
   void UpdateAverageTransmissionRate(void);
+
+  // peter: static method to get TB size from sinr values
+  int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int rbg_size);
+  // peter: for preliminary code, use this vector for GBR:
+  std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
+  std::vector<int> pre_defined_gbr_bits_per_second = {};
 };
 
 #endif /* DOWNLINKPACKETSCHEDULER_H_ */

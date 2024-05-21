@@ -96,7 +96,7 @@ static void SingleCellWithInterference(double radius, int sched_type,
       break;
     case 7:
       downlink_scheduler_type = ENodeB::DLScheduler_NVS;
-      std::cout << "Scheduler NVS " << std::endl;
+      std::cerr << "Scheduler NVS " << std::endl;
       break;
     case 8:
       downlink_scheduler_type = ENodeB::DLScheduler_SEQUENTIAL;
@@ -131,9 +131,13 @@ static void SingleCellWithInterference(double radius, int sched_type,
       downlink_scheduler_type = ENodeB::DLSScheduler_MIX;
       std::cout << "Scheduler Mix" << std::endl;
       break;
+    case 95:
+      downlink_scheduler_type = ENodeB::DLScheduler_MAXCELL_CAP;
+      std::cerr << "Maxcell with a cap that stops allocating when the GBR has been reached" << std::endl;
+      break;
     case 100:
       downlink_scheduler_type = ENodeB::DLScheduler_HETEROGENOUS;
-      std::cout << "Scheduler Heterogenous" << std::endl;
+      std::cerr << "Scheduler Heterogenous" << std::endl;
       break;
     default:
       string error_log = "Undefined Scheduler: " + std::to_string(sched_type);
