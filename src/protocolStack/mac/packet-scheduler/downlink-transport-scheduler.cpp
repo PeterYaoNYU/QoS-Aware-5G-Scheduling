@@ -576,6 +576,80 @@ static vector<int> MaximizeCell(double** flow_spectraleff,
   return rbg_to_slice;
 }
 
+// peter: if there is leftover RBs:
+// if there is unsatisfied UEs, 
+// for each resource block, find the UE that have the highest throughput AND is not satisfied, under the promise that its performance will not be negatively impacted
+// by the newly added resource block. 
+// In the unlikey event that all UEs have been satisifed in this TTI, allocate according to the highest throughput
+static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisfied_ues, DownlinkTransportScheduler* downlink_transport_scheduler, std::vector<bool>& rbg_availability, int rbg_size, std::map<int, std::vector<double>>& current_sinr_vals)
+{
+  // @param alloc_res: the return vector of this function
+  // the first is the rbg_id, the second is the UE that this leftover RBG should be assigned to 
+  std::vector<std::pair<int, int>> alloc_res;
+  // check if there is leftover RBs
+  bool all_allocated = std::all_of(rbg_availability.begin(), rbg_availability.end(), [](bool val){ return ! val; });
+  if (all_allocated) {
+    std::cerr << "There is no leftover resource block" << std::endl;
+    return alloc_res;
+  }
+
+  std::vector<int> candidate_ues;
+  // check if all UEs have already been satisfied
+  bool allTrue = std::all_of(satisfied_ues.begin(), satisfied_ues.end(), [](bool value) {return value; });
+  if (allTrue) {
+    std::cerr << "all users alreasy satisfied in this TTI " << std::endl;
+    // allocate according to the max throughput
+    for (auto i = 0 ; i < satisfied_ues.size(); i++) {
+      candidate_ues.push_back(static_cast<int>(i));
+    }
+  } else {
+    // get all the unsatisfied UEs out for choices
+    for (auto i = 0; i < satisfied_ues.size(); i++ ) {
+      if (!satisfied_ues[i]) {
+        candidate_ues.push_back(static_cast<int>(i));
+      }
+    }
+  }
+
+  // @param candidate_ues hold the ues that should be allocated (either unsatisifed, or all have already been satisfied)
+  // allocate to them based on throughput
+  // under the premise that it does not lower the overal Sinr
+  auto amc = downlink_transport_scheduler->GetMacEntity()->GetAmcModule();
+  auto users = downlink_transport_scheduler->GetUsersToSchedule();
+
+  for (int i = 0; i < rbg_availability.size(); i++) {
+    if (rbg_availability[i] == true) {
+      // @ channel_quality: for a specific RBG: ue_id -> channel_quality 
+      std::vector<std::pair<int, double>> channel_quality ;
+      for (auto j = 0; j < candidate_ues.size(); j++) {
+        channel_quality.push_back(std::make_pair(j, amc->GetSinrFromCQI(users->at(j)->GetCqiFeedbacks().at(i * rbg_size))));
+      }
+      std::sort(channel_quality.begin(), channel_quality.end(), [](const std::pair<int, double> &a, const std::pair<int, double> &b) {
+                  return a.second > b.second;
+              });
+      for (auto iter = channel_quality.begin(); iter != channel_quality.end(); iter++ ) {
+        auto ue_id = iter->first;
+        auto current_sinr = iter->second;
+        auto allocated_sinr_vec = current_sinr_vals[ue_id];
+        auto old_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
+        allocated_sinr_vec.push_back(current_sinr);
+        auto tentative_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
+        if (tentative_TBSize >= old_TBSize ) {
+          rbg_availability[i] = false;
+          alloc_res.push_back(std::make_pair(i, ue_id));
+          current_sinr_vals[ue_id] = allocated_sinr_vec;
+          int request = int(downlink_transport_scheduler->pre_defined_gbr_[ue_id]) * 1000 * 1000 / 1000; // Mbps -> bits per TTI // TODO: check the User ID
+          if (tentative_TBSize > request) {
+            candidate_ues.erase(std::remove(candidate_ues.begin(), candidate_ues.end(), ue_id), candidate_ues.end());
+            satisfied_ues[ue_id] = true;
+          }
+        }
+      }
+    }
+  }
+  return alloc_res;
+}
+
 static vector<int> MaximizeCellWithCap(double** flow_spectraleff,
                                 vector<int>& slice_quota_rbgs, int nb_rbgs,
                                 int nb_slices, int** user_index, 
@@ -583,7 +657,8 @@ static vector<int> MaximizeCellWithCap(double** flow_spectraleff,
                                 std::map<int, std::vector<double>>& current_sinr_vals,
                                 AMCModule* amc, int rbg_size, 
                                 DownlinkTransportScheduler::UsersToSchedule* users,
-                                DownlinkTransportScheduler* downlink_transport_scheduler) {
+                                DownlinkTransportScheduler* downlink_transport_scheduler, 
+                                std::vector<bool>& satisfied_ues) {
   // it's ok that the quota is negative
   vector<coord_cqi_t> sorted_cqi;
   vector<int> slice_rbgs(nb_slices, 0);
@@ -615,6 +690,9 @@ static vector<int> MaximizeCellWithCap(double** flow_spectraleff,
       auto pre_defined_gbr = downlink_transport_scheduler->pre_defined_gbr_[user_id] * 1000 * 1000 / 1000; // Mbps -> bits per TTI
       std::cerr << "user_id: " << user_id << " rbg_id: " << rbg_id << " tentative TB size " << tentative_TBsize << " predefined_gbr " << pre_defined_gbr << std::endl;
       if (!(tentative_TBsize > current_TBsize && current_TBsize < pre_defined_gbr)){
+        if (current_TBsize >= pre_defined_gbr) {
+          satisfied_ues[user_id] = true;
+        }
         std::cerr << "user_id: " << user_id << " rbg_id: " << rbg_id << " current TB size: " << current_TBsize << " tentative TB size: " << tentative_TBsize << " predefined GBR: " << pre_defined_gbr << " too much for this UE, or is degrading channel quality" << std::endl;
         continue;
       }
@@ -725,6 +803,8 @@ void DownlinkTransportScheduler::RBsAllocation() {
   std::vector<bool> rbg_availability(rbg_size, true);
   std::map<int, std::vector<double>> current_sinr_vals;
   std::cerr << "rbg_availability size: " << rbg_availability.size() << "current_sinr_vals size: " << current_sinr_vals.size() << std::endl;
+
+  std::vector<bool> satisfied_ues(users->size(), false);
 
   // currently nb_rbgs should be divisible
   nb_rbs = nb_rbs - (nb_rbs % rbg_size);
@@ -906,7 +986,7 @@ void DownlinkTransportScheduler::RBsAllocation() {
     case 6: //peter: maxcell with a cap for GBR
       std::cerr << "running maxcell with a cap " << std::endl;
       rbg_to_slice = MaximizeCellWithCap(flow_spectraleff, slice_quota_rbgs,
-                                      nb_rbgs, num_slices_, user_index, rbg_availability, current_sinr_vals, amc, rbg_size, users, this);
+                                      nb_rbgs, num_slices_, user_index, rbg_availability, current_sinr_vals, amc, rbg_size, users, this, satisfied_ues);  
       break;                          
     default:
       slice_rbgs =
@@ -935,6 +1015,18 @@ void DownlinkTransportScheduler::RBsAllocation() {
         }
       } else {
         std::cerr << "rbg_id: " << i << " not allocated yet " << std::endl;
+      }
+    }
+
+    if (inter_sched_ == 6) {
+      auto alloc_res = AllocateLeftOverRBs(satisfied_ues, this, rbg_availability, rbg_size, current_sinr_vals);
+      for (auto iter  = alloc_res.begin(); iter != alloc_res.end(); iter++) {
+        int rbg_id = iter->first;
+        auto uindex = iter->second;
+        int l = rbg_id * rbg_size, r = (rbg_id+1) * rbg_size;
+        for (int j = l; j < r; ++j) {
+          users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
+        }
       }
     }
   } else {
