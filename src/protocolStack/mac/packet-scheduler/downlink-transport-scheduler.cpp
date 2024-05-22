@@ -31,6 +31,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <utility>
+#include <numeric>
 #include "../../../core/spectrum/bandwidth-manager.h"
 #include "../../../device/ENodeB.h"
 #include "../../../device/NetworkNode.h"
@@ -635,10 +636,12 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
         auto ue_id = iter->first;
         auto current_sinr = iter->second;
         auto allocated_sinr_vec = current_sinr_vals[ue_id];
+        auto sum = std::accumulate(allocated_sinr_vec.begin(), allocated_sinr_vec.end(), 0.0);
+        auto avg_sinr = sum / allocated_sinr_vec.size();
         auto old_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
         allocated_sinr_vec.push_back(current_sinr);
         auto tentative_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
-        std::cerr<< "rbg id: " << i << " ue id: " << ue_id << " old_tbsize: " << old_TBSize << " new tbsize: " << tentative_TBSize << " current sinr " << current_sinr << std::endl;
+        std::cerr<< "rbg id: " << i << " ue id: " << ue_id << " old_tbsize: " << old_TBSize << " new tbsize: " << tentative_TBSize << " current sinr " << current_sinr << " Avg prev sinr: " << avg_sinr << std::endl;
         if (tentative_TBSize >= old_TBSize) {
           std::cerr << "Allocating the surplus RBs to " << ue_id << " and the RBG id is " << i << std::endl;
           rbg_availability[i] = false;
