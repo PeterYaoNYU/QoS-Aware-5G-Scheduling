@@ -604,11 +604,14 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
     }
   } else {
     // get all the unsatisfied UEs out for choices
+    std::cerr << "candidate UEs for further allocation: ";
     for (auto i = 0; i < satisfied_ues.size(); i++ ) {
       if (!satisfied_ues[i]) {
         candidate_ues.push_back(static_cast<int>(i));
+        std::cerr << i << ", ";
       }
     }
+    std::cerr << " " << std::endl;
   }
 
   // @param candidate_ues hold the ues that should be allocated (either unsatisifed, or all have already been satisfied)
@@ -619,10 +622,11 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
 
   for (int i = 0; i < rbg_availability.size(); i++) {
     if (rbg_availability[i] == true) {
+      std::cerr << "Allocating surplus RBG: " << i << std::endl;
       // @ channel_quality: for a specific RBG: ue_id -> channel_quality 
       std::vector<std::pair<int, double>> channel_quality ;
       for (auto j = 0; j < candidate_ues.size(); j++) {
-        channel_quality.push_back(std::make_pair(j, amc->GetSinrFromCQI(users->at(j)->GetCqiFeedbacks().at(i * rbg_size))));
+        channel_quality.push_back(std::make_pair(candidate_ues[j], amc->GetSinrFromCQI(users->at(candidate_ues[j])->GetCqiFeedbacks().at(i * rbg_size))));
       }
       std::sort(channel_quality.begin(), channel_quality.end(), [](const std::pair<int, double> &a, const std::pair<int, double> &b) {
                   return a.second > b.second;
@@ -634,7 +638,9 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
         auto old_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
         allocated_sinr_vec.push_back(current_sinr);
         auto tentative_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
-        if (tentative_TBSize >= old_TBSize ) {
+        std::cerr<< "rbg id: " << i << " ue id: " << ue_id << " old_tbsize: " << old_TBSize << " new tbsize: " << tentative_TBSize << " current sinr " << current_sinr << std::endl;
+        if (tentative_TBSize >= old_TBSize) {
+          std::cerr << "Allocating the surplus RBs to " << ue_id << " and the RBG id is " << i << std::endl;
           rbg_availability[i] = false;
           alloc_res.push_back(std::make_pair(i, ue_id));
           current_sinr_vals[ue_id] = allocated_sinr_vec;
@@ -643,6 +649,7 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
             candidate_ues.erase(std::remove(candidate_ues.begin(), candidate_ues.end(), ue_id), candidate_ues.end());
             satisfied_ues[ue_id] = true;
           }
+          break;
         }
       }
     }
@@ -699,7 +706,7 @@ static vector<int> MaximizeCellWithCap(double** flow_spectraleff,
       
       rbg_to_slice[rbg_id] = slice_id;
       slice_rbgs[slice_id] += 1;
-      rbg_availability[rbg_id] = false;
+      // rbg_availability[rbg_id] = false;
       current_sinr_vals[user_id] = current_user_sinr_vals;
     }
   }
@@ -800,9 +807,7 @@ void DownlinkTransportScheduler::RBsAllocation() {
                    .size();
   int rbg_size = get_rbg_size(nb_rbs);
   // peter: clear all relevant data structures
-  std::vector<bool> rbg_availability(rbg_size, true);
   std::map<int, std::vector<double>> current_sinr_vals;
-  std::cerr << "rbg_availability size: " << rbg_availability.size() << "current_sinr_vals size: " << current_sinr_vals.size() << std::endl;
 
   std::vector<bool> satisfied_ues(users->size(), false);
 
@@ -850,6 +855,10 @@ void DownlinkTransportScheduler::RBsAllocation() {
     }
   }
   int nb_rbgs = nb_rbs / rbg_size;
+
+  // peter: for allocation of unallocated RBGs, keep track of who have not been allocated yet 
+  std::vector<bool> rbg_availability(nb_rbgs, true);
+
   // calculate the rbg quota for slices
   std::vector<int> slice_quota_rbgs(num_slices_, 0);
   std::vector<int> slice_final_rbgs(num_slices_, 0);
@@ -1013,6 +1022,7 @@ void DownlinkTransportScheduler::RBsAllocation() {
         for (int j = l; j < r; ++j) {
           users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
         }
+        rbg_availability[i] = false;
       } else {
         std::cerr << "rbg_id: " << i << " not allocated yet " << std::endl;
       }
