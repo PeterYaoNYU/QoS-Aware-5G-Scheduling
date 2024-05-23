@@ -31,6 +31,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <utility>
+#include <numeric>
 #include "../../../core/spectrum/bandwidth-manager.h"
 #include "../../../device/ENodeB.h"
 #include "../../../device/NetworkNode.h"
@@ -276,6 +277,18 @@ int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> e
   return transportBlockSize;
 }
 
+int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int rbg_size) { 
+  int num_rbg = estimatedSinrValues.size();
+  if (num_rbg == 0) {
+    return 0;
+  }
+  AMCModule* amc = GetMacEntity()->GetAmcModule();
+  double effectiveSinr = GetEesmEffectiveSinr(estimatedSinrValues);
+  int mcs = amc->GetMCSFromCQI(amc->GetCQIFromSinr(effectiveSinr));
+  int transportBlockSize = amc->GetTBSizeFromMCS(mcs, num_rbg * rbg_size);
+  return transportBlockSize;
+}
+
 bool sortByVal(const std::pair<int, int> &a, const std::pair<int, int> &b) {
     return a.second < b.second; // sort by increasing order of value
 }
@@ -283,6 +296,93 @@ bool sortByVal(const std::pair<int, int> &a, const std::pair<int, int> &b) {
 bool sortByValDesc(const std::pair<int, int> &a, const std::pair<int, int> &b) {
     return a.second > b.second; // sort by decreasing order of value
 }
+
+
+
+
+// peter: if there is leftover RBs:
+// if there is unsatisfied UEs, 
+// for each resource block, find the UE that have the highest throughput AND is not satisfied, under the promise that its performance will not be negatively impacted
+// by the newly added resource block. 
+// In the unlikey event that all UEs have been satisifed in this TTI, allocate according to the highest throughput
+static vector<std::pair<int, int>> AllocateLeftOverRBs_hetero(std::vector<bool>& satisfied_ues, DownlinkHeterogenousScheduler* downlink_transport_scheduler, std::vector<bool>& rbg_availability, int rbg_size, std::map<int, std::vector<double>>& current_sinr_vals)
+{
+  // @param alloc_res: the return vector of this function
+  // the first is the rbg_id, the second is the UE that this leftover RBG should be assigned to 
+  std::vector<std::pair<int, int>> alloc_res;
+  // check if there is leftover RBs
+  bool all_allocated = std::all_of(rbg_availability.begin(), rbg_availability.end(), [](bool val){ return ! val; });
+  if (all_allocated) {
+    std::cerr << "There is no leftover resource block" << std::endl;
+    return alloc_res;
+  }
+
+  std::vector<int> candidate_ues;
+  // check if all UEs have already been satisfied
+  bool allTrue = std::all_of(satisfied_ues.begin(), satisfied_ues.end(), [](bool value) {return value; });
+  if (allTrue) {
+    std::cerr << "all users alreasy satisfied in this TTI " << std::endl;
+    // allocate according to the max throughput
+    for (auto i = 0 ; i < satisfied_ues.size(); i++) {
+      candidate_ues.push_back(static_cast<int>(i));
+    }
+  } else {
+    // get all the unsatisfied UEs out for choices
+    std::cerr << "candidate UEs for further allocation: ";
+    for (auto i = 0; i < satisfied_ues.size(); i++ ) {
+      if (!satisfied_ues[i]) {
+        candidate_ues.push_back(static_cast<int>(i));
+        std::cerr << i << ", ";
+      }
+    }
+    std::cerr << " " << std::endl;
+  }
+
+  // @param candidate_ues hold the ues that should be allocated (either unsatisifed, or all have already been satisfied)
+  // allocate to them based on throughput
+  // under the premise that it does not lower the overal Sinr
+  auto amc = downlink_transport_scheduler->GetMacEntity()->GetAmcModule();
+  auto users = downlink_transport_scheduler->GetUsersToSchedule();
+
+  for (int i = 0; i < rbg_availability.size(); i++) {
+    if (rbg_availability[i] == true) {
+      std::cerr << "Allocating surplus RBG: " << i << std::endl;
+      // @ channel_quality: for a specific RBG: ue_id -> channel_quality 
+      std::vector<std::pair<int, double>> channel_quality ;
+      for (auto j = 0; j < candidate_ues.size(); j++) {
+        channel_quality.push_back(std::make_pair(candidate_ues[j], amc->GetSinrFromCQI(users->at(candidate_ues[j])->GetCqiFeedbacks().at(i * rbg_size))));
+      }
+      std::sort(channel_quality.begin(), channel_quality.end(), [](const std::pair<int, double> &a, const std::pair<int, double> &b) {
+                  return a.second > b.second;
+              });
+      for (auto iter = channel_quality.begin(); iter != channel_quality.end(); iter++ ) {
+        auto ue_id = iter->first;
+        auto current_sinr = iter->second;
+        auto allocated_sinr_vec = current_sinr_vals[ue_id];
+        auto sum = std::accumulate(allocated_sinr_vec.begin(), allocated_sinr_vec.end(), 0.0);
+        auto avg_sinr = sum / allocated_sinr_vec.size();
+        auto old_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
+        allocated_sinr_vec.push_back(current_sinr);
+        auto tentative_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
+        std::cerr<< "rbg id: " << i << " ue id: " << ue_id << " old_tbsize: " << old_TBSize << " new tbsize: " << tentative_TBSize << " current sinr " << current_sinr << " Avg prev sinr: " << avg_sinr << std::endl;
+        if (tentative_TBSize >= old_TBSize) {
+          std::cerr << "Allocating the surplus RBs to " << ue_id << " and the RBG id is " << i << std::endl;
+          rbg_availability[i] = false;
+          alloc_res.push_back(std::make_pair(i, ue_id));
+          current_sinr_vals[ue_id] = allocated_sinr_vec;
+          int request = int(downlink_transport_scheduler->pre_defined_gbr_[ue_id]) * 1000 * 1000 / 1000; // Mbps -> bits per TTI // TODO: check the User ID
+          if (tentative_TBSize > request) {
+            candidate_ues.erase(std::remove(candidate_ues.begin(), candidate_ues.end(), ue_id), candidate_ues.end());
+            satisfied_ues[ue_id] = true;
+          }
+          break;
+        }
+      }
+    }
+  }
+  return alloc_res;
+}
+
 
 void DownlinkHeterogenousScheduler::RBsAllocation() {
 
@@ -299,6 +399,8 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   // currently nb_rbgs should be divisible
   nb_rbs = nb_rbs - (nb_rbs % rbg_size);
   assert(nb_rbs % rbg_size == 0);
+
+  std::map<int, std::vector<double>> current_sinr_vals;
 
   // find out slices without data/flows at all, and assign correct rb target
   std::vector<bool> slice_with_data(num_slices_, false);
@@ -530,6 +632,9 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       int rbg_id = rbgid_impact_pair[j].first;
       if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
         std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
+        // peter: for allocating surplus RBs
+        current_sinr_vals[user_id].push_back(amc->GetSinrFromCQI(users->at(user_id)->GetCqiFeedbacks().at(rbg_id * rbg_size)));
+        // rbg_availability[rbg_id] = false;
         int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
         for (int j = l; j < r; ++j) {
           users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
@@ -569,10 +674,41 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     std::cerr << "user_id: " << satisfied_users[i].first << ", allocated_RBG_num:" << satisfied_users[i].second << std::endl;
   }
 
+  std::vector<bool> satisfied_ues;
+  // peter: this looks like a mistake to me. For now, keep it. Debug it later. When the number of UEs is small, does not matter much
+  for (auto i = 0; i < users->size(); i++) {
+    if (ue_satisfied[i] == 1) {
+      satisfied_ues.push_back(true);
+    } else {
+      satisfied_ues.push_back(false);
+    }
+  }
+
+  std::vector<bool> rbg_availability_vec;
+  for (auto i = 0; i < nb_rbgs; i++) {
+    if (rbg_availability[i] == 1) {
+      rbg_availability_vec.push_back(true);
+    } else {
+      rbg_availability_vec.push_back(false);
+    }
+  }
+
+
+  auto alloc_res = AllocateLeftOverRBs_hetero(satisfied_ues, this, rbg_availability_vec, rbg_size, current_sinr_vals);
+
+  for (auto iter  = alloc_res.begin(); iter != alloc_res.end(); iter++) {
+    int rbg_id = iter->first;
+    auto uindex = iter->second;
+    int l = rbg_id * rbg_size, r = (rbg_id+1) * rbg_size;
+    for (int j = l; j < r; ++j) {
+      users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
+    }
+  }
+
 
   // ========= Allocation for those unallocated RBs: greedy, per UE =========
   for (int uid = 0; uid < users->size(); uid++) {
-    if (ue_satisfied[uid] == 1) {
+    if (satisfied_ues[uid] == 1) {
       continue;
     }
     int num_RBG_needed = user_requestRB_pair[uid].second;
@@ -606,7 +742,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
           rbg_availability[crt_rbg_id] = 0;
           std::cerr << "]" << std::endl;
           if (new_estima > pre_defined_gbr_[uid] * 1000 * 1000 / 1000) {
-            ue_satisfied[uid] = 1;
+            satisfied_ues[uid] = 1;
             std::cerr << "  user_id: " << uid << " is satisfied" << std::endl;
           }
         }
@@ -615,6 +751,14 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
   }
 
+  // peter: checking how many remain unallocated after all has finished
+  int count = 0;
+  for (int i = 0; i < nb_rbgs; i++) {
+    if (rbg_availability[i] == 1) {
+      count++;
+    }
+  }
+  std::cerr << "The count of unallocated RBGs " << count << std::endl;
 
   // // ========= Allocation for those unallocated RBs: allocate to thsoe unsatisfied UE in a greely way (per RB) =========
   // for those RB that not in any UE's suitable list
