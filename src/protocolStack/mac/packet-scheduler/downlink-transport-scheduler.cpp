@@ -595,6 +595,7 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
   }
 
   std::vector<int> candidate_ues;
+  std::vector<int> all_ues;
   // check if all UEs have already been satisfied
   bool allTrue = std::all_of(satisfied_ues.begin(), satisfied_ues.end(), [](bool value) {return value; });
   if (allTrue) {
@@ -615,6 +616,10 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
     std::cerr << " " << std::endl;
   }
 
+    for (auto i = 0 ; i < satisfied_ues.size(); i++) {
+      all_ues.push_back(static_cast<int>(i));
+    }
+
   // @param candidate_ues hold the ues that should be allocated (either unsatisifed, or all have already been satisfied)
   // allocate to them based on throughput
   // under the premise that it does not lower the overal Sinr
@@ -624,6 +629,7 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
   for (int i = 0; i < rbg_availability.size(); i++) {
     if (rbg_availability[i] == true) {
       std::cerr << "Allocating surplus RBG: " << i << std::endl;
+      bool allocated_to_unsatified_ue = false;
       // @ channel_quality: for a specific RBG: ue_id -> channel_quality 
       std::vector<std::pair<int, double>> channel_quality ;
       for (auto j = 0; j < candidate_ues.size(); j++) {
@@ -644,6 +650,7 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
         std::cerr<< "rbg id: " << i << " ue id: " << ue_id << " old_tbsize: " << old_TBSize << " new tbsize: " << tentative_TBSize << " current sinr " << current_sinr << " Avg prev sinr: " << avg_sinr << std::endl;
         if (tentative_TBSize >= old_TBSize) {
           std::cerr << "Allocating the surplus RBs to " << ue_id << " and the RBG id is " << i << std::endl;
+          allocated_to_unsatified_ue = true;
           rbg_availability[i] = false;
           alloc_res.push_back(std::make_pair(i, ue_id));
           current_sinr_vals[ue_id] = allocated_sinr_vec;
@@ -653,6 +660,35 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
             satisfied_ues[ue_id] = true;
           }
           break;
+        }
+      }
+
+      if (!allocated_to_unsatified_ue) {
+        std::cerr << "not allocated to unsatisfieed UE, allocating to the UE with the highest throughput" << std::endl;
+        channel_quality.clear();
+        for (auto j = 0; j < all_ues.size(); j++) {
+          channel_quality.push_back(std::make_pair(j, amc->GetSinrFromCQI(users->at(j)->GetCqiFeedbacks().at(i * rbg_size))));
+        }
+        std::sort(channel_quality.begin(), channel_quality.end(), [](const std::pair<int, double> &a, const std::pair<int, double> &b) {
+                    return a.second > b.second;
+                });
+        for (auto iter = channel_quality.begin(); iter != channel_quality.end(); iter++ ) {
+          auto ue_id = iter->first;
+          auto current_sinr = iter->second;
+          auto allocated_sinr_vec = current_sinr_vals[ue_id];
+          auto sum = std::accumulate(allocated_sinr_vec.begin(), allocated_sinr_vec.end(), 0.0);
+          auto avg_sinr = sum / allocated_sinr_vec.size();
+          auto old_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
+          allocated_sinr_vec.push_back(current_sinr);
+          auto tentative_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(allocated_sinr_vec, rbg_size);
+          std::cerr<< "rbg id: " << i << " ue id: " << ue_id << " old_tbsize: " << old_TBSize << " new tbsize: " << tentative_TBSize << " current sinr " << current_sinr << " Avg prev sinr: " << avg_sinr << std::endl;
+          if (tentative_TBSize >= old_TBSize) {
+            std::cerr << "Allocating the unsatifactory surplus RBs to " << ue_id << " and the RBG id is " << i << std::endl;
+            rbg_availability[i] = false;
+            alloc_res.push_back(std::make_pair(i, ue_id));
+            current_sinr_vals[ue_id] = allocated_sinr_vec;
+            break;
+          }
         }
       }
     }
