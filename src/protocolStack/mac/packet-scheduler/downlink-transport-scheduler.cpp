@@ -616,9 +616,9 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
     std::cerr << " " << std::endl;
   }
 
-    for (auto i = 0 ; i < satisfied_ues.size(); i++) {
-      all_ues.push_back(static_cast<int>(i));
-    }
+  for (auto i = 0 ; i < satisfied_ues.size(); i++) {
+    all_ues.push_back(static_cast<int>(i));
+  }
 
   // @param candidate_ues hold the ues that should be allocated (either unsatisifed, or all have already been satisfied)
   // allocate to them based on throughput
