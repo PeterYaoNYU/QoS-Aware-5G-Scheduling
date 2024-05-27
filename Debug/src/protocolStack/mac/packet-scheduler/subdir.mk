@@ -20,7 +20,8 @@ CPP_SRCS += \
 ../src/protocolStack/mac/packet-scheduler/uplink-packet-scheduler.cpp \
 ../src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.cpp \
 ../src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.cpp\
-../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.cpp
+../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.cpp \
+../src/protocolStack/mac/packet-scheduler/maxflow.cpp 
 
 OBJS += \
 ./src/protocolStack/mac/packet-scheduler/delay-edd-rule-downlink-packet-scheduler.o \
@@ -39,7 +40,8 @@ OBJS += \
 ./src/protocolStack/mac/packet-scheduler/uplink-packet-scheduler.o \
 ./src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.o \
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.o\
-./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.o
+./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.o \
+./src/protocolStack/mac/packet-scheduler/maxflow.o
 
 CPP_DEPS += \
 ./src/protocolStack/mac/packet-scheduler/delay-edd-rule-downlink-packet-scheduler.d \
@@ -58,14 +60,15 @@ CPP_DEPS += \
 ./src/protocolStack/mac/packet-scheduler/uplink-packet-scheduler.d \
 ./src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.d \
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.d \
-./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.d
+./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.d \
+./src/protocolStack/mac/packet-scheduler/maxflow.d
 
 
 # Each subdirectory must supply rules for building sources it contributes
 src/protocolStack/mac/packet-scheduler/%.o: ../src/protocolStack/mac/packet-scheduler/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -O0 -g3 -Wall -Wno-unused-variable -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o"$@" "$<"
+	g++ -I/usr/include/boost -O0 -g3 -Wall -Wno-unused-variable -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o"$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
