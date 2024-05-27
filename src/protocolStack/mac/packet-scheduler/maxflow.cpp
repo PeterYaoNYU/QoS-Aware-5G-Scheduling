@@ -76,6 +76,16 @@ class MaxFlowGraph {
         return max_flow;
     }
 
+    void printEdgeFlows() const {
+        auto edges = boost::edges(graph_);
+        for (auto it = edges.first; it != edges.second; ++it) {
+            Edge e = *it;
+            std::cout << "Edge (" << boost::source(e, graph_) << " -> " 
+                      << boost::target(e, graph_) << ") "
+                      << "Flow: " << graph_[e].capacity - graph_[e].residual_capacity 
+                      << " / " << graph_[e].capacity << std::endl;
+        }
+    }
 
     private:
         Graph graph_;
