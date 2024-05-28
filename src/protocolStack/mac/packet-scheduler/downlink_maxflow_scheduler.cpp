@@ -19,7 +19,7 @@
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
 
-#include "downlink-heterogenous-scheduler.h"
+#include "downlink_maxflow_scheduler.h"
 #include <jsoncpp/json/json.h>
 #include <algorithm>
 #include <cassert>
@@ -32,6 +32,7 @@
 #include <unordered_map>
 #include <utility>
 #include <numeric>
+#include <set>
 #include "../../../core/spectrum/bandwidth-manager.h"
 #include "../../../device/ENodeB.h"
 #include "../../../device/NetworkNode.h"
@@ -47,6 +48,7 @@
 #include "../../packet/packet-burst.h"
 #include "../mac-entity.h"
 #include "../../../flows/QoS/QoSParameters.h"
+#include "sort_utils.h"
 
 
 using std::unordered_map;
@@ -57,9 +59,35 @@ using std::map;
 using coord_t = std::pair<int, int>;
 using coord_cqi_t = std::pair<coord_t, double>;
 
-DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
+// Peter: to help with the maxflow implementation, use generic programming to calculate the combinatorials of the valid sets of RGBs
+// Function to generate combinations
+template<typename T>
+void generateCombinations(const std::vector<T>& input, int choose, int start,
+                          std::vector<T>& current, std::vector<std::vector<T>>& result) {
+    if (choose == 0) {
+        result.push_back(current);
+        return;
+    }
+
+    for (int i = start; i <= input.size() - choose; ++i) {
+        current.push_back(input[i]);
+        generateCombinations(input, choose - 1, i + 1, current, result);
+        current.pop_back();
+    }
+}
+
+// Function to get combinations of a certain size
+template<typename T>
+std::vector<std::vector<T>> combinations(const std::vector<T>& input, int choose) {
+    std::vector<std::vector<T>> result;
+    std::vector<T> current;
+    generateCombinations(input, choose, 0, current, result);
+    return result;
+}
+
+DownlinkMaxflowScheduler::DownlinkMaxflowScheduler(
     std::string config_fname) {
-  std::cerr << "DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler" << std::endl;
+  std::cerr << "DownlinkMaxflowScheduler::DownlinkMaxflowScheduler" << std::endl;
   std::ifstream ifs(config_fname);
   if (!ifs.is_open()) {
     throw std::runtime_error("Fail to open configuration file.");
@@ -111,13 +139,13 @@ DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
   CreateUsersToSchedule();
 }
 
-DownlinkHeterogenousScheduler::~DownlinkHeterogenousScheduler() {
+DownlinkMaxflowScheduler::~DownlinkMaxflowScheduler() {
   Destroy();
 }
 
 // [Peter]update the CQI, call the actual scheduling function
 // [Peter]entrance of scheduling
-void DownlinkHeterogenousScheduler::DoSchedule(void) {
+void DownlinkMaxflowScheduler::DoSchedule(void) {
 #ifdef SCHEDULER_DEBUG
   std::cout << "\nStart DL packet scheduler for node "
             << GetMacEntity()->GetDevice()->GetIDNetworkNode() << std::endl;
@@ -140,7 +168,7 @@ void DownlinkHeterogenousScheduler::DoSchedule(void) {
 }
 
 // peter: actually send out the packets.
-void DownlinkHeterogenousScheduler::DoStopSchedule(void) {
+void DownlinkMaxflowScheduler::DoStopSchedule(void) {
   PacketBurst* pb = new PacketBurst();
   UsersToSchedule* uesToSchedule = GetUsersToSchedule();
   for (auto it = uesToSchedule->begin(); it != uesToSchedule->end(); it++) {
@@ -188,7 +216,7 @@ void DownlinkHeterogenousScheduler::DoStopSchedule(void) {
 }
 
 
-void DownlinkHeterogenousScheduler::UpdateAverageTransmissionRate(void) {
+void DownlinkMaxflowScheduler::UpdateAverageTransmissionRate(void) {
   // we should update the user average transmission rate instead of the flow transmission rate
   RrcEntity* rrc =
       GetMacEntity()->GetDevice()->GetProtocolStack()->GetRrcEntity();
@@ -204,7 +232,7 @@ void DownlinkHeterogenousScheduler::UpdateAverageTransmissionRate(void) {
 // [Peter] For each radio bearer in each UE, get the respective spectral efficiency
 // [Peter] update the slice's priority to that of the highest UE's priority in the slice
 // peter: clear all previous users, then readd new users to the scheduler
-void DownlinkHeterogenousScheduler::SelectFlowsToSchedule() {
+void DownlinkMaxflowScheduler::SelectFlowsToSchedule() {
 #ifdef SCHEDULER_DEBUG
   std::cout << "\t Select Flows to schedule" << std::endl;
 #endif
@@ -266,7 +294,7 @@ void DownlinkHeterogenousScheduler::SelectFlowsToSchedule() {
   }
 }
 
-int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rbg, int rbg_size) { 
+int DownlinkMaxflowScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rbg, int rbg_size) { 
   if (num_rbg == 0) {
     return 0;
   }
@@ -277,7 +305,7 @@ int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> e
   return transportBlockSize;
 }
 
-int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int rbg_size) { 
+int DownlinkMaxflowScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int rbg_size) { 
   int num_rbg = estimatedSinrValues.size();
   if (num_rbg == 0) {
     return 0;
@@ -289,14 +317,6 @@ int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> e
   return transportBlockSize;
 }
 
-bool sortByVal(const std::pair<int, int> &a, const std::pair<int, int> &b) {
-    return a.second < b.second; // sort by increasing order of value
-}
-
-bool sortByValDesc(const std::pair<int, int> &a, const std::pair<int, int> &b) {
-    return a.second > b.second; // sort by decreasing order of value
-}
-
 
 
 
@@ -305,7 +325,7 @@ bool sortByValDesc(const std::pair<int, int> &a, const std::pair<int, int> &b) {
 // for each resource block, find the UE that have the highest throughput AND is not satisfied, under the promise that its performance will not be negatively impacted
 // by the newly added resource block. 
 // In the unlikey event that all UEs have been satisifed in this TTI, allocate according to the highest throughput
-static vector<std::pair<int, int>> AllocateLeftOverRBs_hetero(std::vector<bool>& satisfied_ues, DownlinkHeterogenousScheduler* downlink_transport_scheduler, std::vector<bool>& rbg_availability, int rbg_size, std::map<int, std::vector<double>>& current_sinr_vals)
+static vector<std::pair<int, int>> AllocateLeftOverRBs_hetero(std::vector<bool>& satisfied_ues, DownlinkMaxflowScheduler* downlink_transport_scheduler, std::vector<bool>& rbg_availability, int rbg_size, std::map<int, std::vector<double>>& current_sinr_vals)
 {
   // @param alloc_res: the return vector of this function
   // the first is the rbg_id, the second is the UE that this leftover RBG should be assigned to 
@@ -420,7 +440,7 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs_hetero(std::vector<bool>&
 }
 
 
-void DownlinkHeterogenousScheduler::RBsAllocation() {
+void DownlinkMaxflowScheduler::RBsAllocation() {
 
   // std::cerr << GetTimeStamp() << " ====== RBsAllocation ====== " << std::endl;
 
@@ -654,138 +674,37 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   for (int i = 0; i < nb_rbgs; i++) {
     ue_satisfied[i] = 0;
   }
-  for (int i = 0; i < user_requestRB_pair.size(); i++) {
-    int user_id = user_requestRB_pair[i].first;
-    int num_RBG_needed = user_requestRB_pair[i].second;
-    if (num_RBG_needed > nb_rbgs) {
-      std::cerr << "Warning, user_id: " << user_id << " cannot be satisfied, required RBGs: " << num_RBG_needed << std::endl;
-      continue;
-    }
-    // find the available RBs
-    int allocated_RBG_num = 0;
-    // iterate sorted rbgid_impact_pair, find the suitable RBs for the UE
+  // ========== Compute the Combinatorials ==========
+  // Peter: Because I want to avoid duplicates, I used a std::set here
+  std::set<std::vector<int>> rbg_combinatorial_set;
+  for (int i = 0; i < users->size(); i++) {
+    int ue_id = user_requestRB_pair[i].first; 
+    int requested_rbg_count = user_requestRB_pair[i].second;
+    std::vector<int> candidate_rbg_id_for_comb;
     for (int j = 0; j < nb_rbgs; j++) {
-      int rbg_id = rbgid_impact_pair[j].first;
-      if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
-        std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
-        // peter: for allocating surplus RBs
-        current_sinr_vals[user_id].push_back(amc->GetSinrFromCQI(users->at(user_id)->GetCqiFeedbacks().at(rbg_id * rbg_size)));
-        // rbg_availability[rbg_id] = false;
-        int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
-        for (int j = l; j < r; ++j) {
-          users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
-          std::cerr << j << " ";
+        if (metrics[j][ue_id] == 1) {
+            candidate_rbg_id_for_comb.push_back(j);
         }
-        users->at(user_id)->GetListOfAllocatedRBGs()->push_back(rbg_id);
-        std::cerr << "]" << std::endl;
-        rbg_availability[rbg_id] = 0;
-        allocated_RBG_num += 1;
-        if (allocated_RBG_num == num_RBG_needed) 
-        {
-          satisfied_users.push_back(make_pair(user_id, allocated_RBG_num));
-          ue_satisfied[user_id] = 1;
-          break;
-        }
-      }
     }
+
+    // get the set of all combinatorials
+    auto combinatorials = combinations(candidate_rbg_id_for_comb, requested_rbg_count);
+    for (auto it = combinatorials.begin(); it != combinatorials.end(); it++) {
+      std::vector<int> comb = *it;
+      std::sort(comb.begin(), comb.end());
+      rbg_combinatorial_set.insert(comb);
+    }
+    
+    // print the ue_id, and the combinatorials calculated:
+    std::cerr << "ue_id: " << ue_id << ", requested_rbg_count: " << requested_rbg_count << ", candidate_rbg_id_for_comb(" << candidate_rbg_id_for_comb.size() << "): ";
+    for (int j = 0; j < combinatorials[0].size(); j++){
+        std::cerr << combinatorials[0][j] << " ";
+    }
+    std::cerr << std::endl;
   }
-  // print those unallocated RB
-  std::cerr << "==== unallocated RBs ====" << std::endl;
-  for (int i = 0; i < nb_rbgs; i++) {
-    int rbg_id = rbgid_impact_pair[i].first;
-    if (rbg_availability[rbg_id] == 1) {
-      std::cerr << i << "th rbg_id: " << rbgid_impact_pair[i].first << " impact:" << rbgid_impact_pair[i].second;
-      // print rbg_impact_ues
-      std::cerr << "  rbg_impact_ues(" << rbg_impact_ues[rbg_id].size() << "): ";
-      for (int j = 0; j < rbg_impact_ues[rbg_id].size(); j++) {
-        std::cerr << rbg_impact_ues[rbg_id][j] << " ";
-      }
-      std::cerr << std::endl;
-    }
-  }
+  // ========== Construct the Max Flow Graph ==========
 
 
-  std::cerr << "+++++++++++++==== satisfied_users ====+++++++++++++====" << std::endl;
-  for (int i = 0; i < satisfied_users.size(); i++) {
-    std::cerr << "user_id: " << satisfied_users[i].first << ", allocated_RBG_num:" << satisfied_users[i].second << std::endl;
-  }
-
-  std::vector<bool> satisfied_ues;
-  // peter: this looks like a mistake to me. For now, keep it. Debug it later. When the number of UEs is small, does not matter much
-  for (auto i = 0; i < users->size(); i++) {
-    if (ue_satisfied[i] == 1) {
-      satisfied_ues.push_back(true);
-    } else {
-      satisfied_ues.push_back(false);
-    }
-  }
-
-  std::vector<bool> rbg_availability_vec;
-  for (auto i = 0; i < nb_rbgs; i++) {
-    if (rbg_availability[i] == 1) {
-      rbg_availability_vec.push_back(true);
-    } else {
-      rbg_availability_vec.push_back(false);
-    }
-  }
-
-
-  auto alloc_res = AllocateLeftOverRBs_hetero(satisfied_ues, this, rbg_availability_vec, rbg_size, current_sinr_vals);
-
-  for (auto iter  = alloc_res.begin(); iter != alloc_res.end(); iter++) {
-    int rbg_id = iter->first;
-    auto uindex = iter->second;
-    int l = rbg_id * rbg_size, r = (rbg_id+1) * rbg_size;
-    for (int j = l; j < r; ++j) {
-      users->at(uindex)->GetListOfAllocatedRBs()->push_back(j);
-    }
-  }
-
-
-  // ========= Allocation for those unallocated RBs: greedy, per UE =========
-  for (int uid = 0; uid < users->size(); uid++) {
-    if (satisfied_ues[uid] == 1) {
-      continue;
-    }
-    int num_RBG_needed = user_requestRB_pair[uid].second;
-    if (num_RBG_needed > nb_rbgs) {
-      std::cerr << "Warning, user_id: " << uid << " cannot be satisfied, required RBGs: " << num_RBG_needed << std::endl;
-      continue;
-    }
-    for (int idx = users->at(uid)->GetLowerBoundSortedIdx()+1; idx < nb_rbgs; idx++) {
-      int crt_rbg_id = users->at(uid)->GetSortedRBGIds().at(idx);
-      if (rbg_availability[crt_rbg_id] == 1) {
-        std::cerr << "  Try to allcoation for user_id: " << uid << ", rbg_id: " << crt_rbg_id;
-        std::vector<double> new_estimatedSinrValues = {};
-        for (int alloc_rb_id = 0; alloc_rb_id < users->at(uid)->GetListOfAllocatedRBGs()->size(); alloc_rb_id++) {
-          double sinr = amc->GetSinrFromCQI(users->at(uid)->GetCqiFeedbacks().at(alloc_rb_id * rbg_size)); 
-          std::cerr << " allocates RBG: " << alloc_rb_id << " sinr:" << sinr << std::endl;
-          new_estimatedSinrValues.push_back(sinr);
-        }
-        int old_estima = EstimateTBSizeByEffSinr(new_estimatedSinrValues, users->at(uid)->GetListOfAllocatedRBGs()->size(), rbg_size);
-        double new_sinr = amc->GetSinrFromCQI(crt_rbg_id * rbg_size); 
-        new_estimatedSinrValues.push_back(new_sinr);
-        int new_estima = EstimateTBSizeByEffSinr(new_estimatedSinrValues, users->at(uid)->GetListOfAllocatedRBGs()->size()+1, rbg_size);
-        std::cerr << "  new_estima:" << new_estima << " request:" << pre_defined_gbr_[uid] * 1000 * 1000 / 1000 << std::endl;
-        if (new_estima > old_estima) {
-          // allocate the RB
-          users->at(uid)->GetListOfAllocatedRBGs()->push_back(crt_rbg_id);
-          int l = crt_rbg_id * rbg_size, r = (crt_rbg_id + 1) * rbg_size;
-          for (int j = l; j < r; ++j) {
-            users->at(uid)->GetListOfAllocatedRBs()->push_back(j);
-            std::cerr << j << " ";
-          }
-          rbg_availability[crt_rbg_id] = 0;
-          std::cerr << "]" << std::endl;
-          if (new_estima > pre_defined_gbr_[uid] * 1000 * 1000 / 1000) {
-            satisfied_ues[uid] = 1;
-            std::cerr << "  user_id: " << uid << " is satisfied" << std::endl;
-          }
-        }
-       
-      }
-    }
-  }
 
   // peter: checking how many remain unallocated after all has finished
   int count = 0;
@@ -796,67 +715,6 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   }
   std::cerr << "The count of unallocated RBGs " << count << std::endl;
 
-  // // ========= Allocation for those unallocated RBs: allocate to thsoe unsatisfied UE in a greely way (per RB) =========
-  // for those RB that not in any UE's suitable list
-  // unallocated RBs
-  // for (int i = 0; i < nb_rbgs; i++) {
-  //   if (rbg_availability[i] == 1) {
-  //     // allocate to the user with the highest CQI
-  //     int max_cqi = -1;
-  //     int max_cqi_user = -1;
-  //     std::cerr << "test ";
-  //     for (int ue = 0; ue < users->size(); ue++) {
-  //       if (ue_satisfied[ue] == 1) {
-  //         continue;
-  //       }
-  //       std::cerr << ue << " ";
-  //       if (max_cqi < users->at(ue)->GetCqiFeedbacks().at(i * rbg_size)) {
-  //         std::cerr << "t1 ";
-  //         max_cqi = users->at(ue)->GetCqiFeedbacks().at(i * rbg_size);
-  //         max_cqi_user = ue;
-  //         std::cerr << "t2 ";
-  //       }
-  //     }
-  //     std::cerr << "  Allocation for user_id: " << max_cqi_user << ", rbg_id: " << i << " rb:[";
-  //     users->at(max_cqi_user)->GetListOfAllocatedRBGs()->push_back(i);
-  //     int l = i * rbg_size, r = (i + 1) * rbg_size;
-  //     for (int j = l; j < r; ++j) {
-  //       users->at(max_cqi_user)->GetListOfAllocatedRBs()->push_back(j);
-  //       std::cerr << j << " ";
-  //     }
-  //     rbg_availability[i] == 0;
-  //     std::cerr << "]" << std::endl;
-  //     std::cerr << " Allocation RB:" << i << "  user_id:" << max_cqi_user << " max_cqi:" << max_cqi << std::endl;
-  //     // if user is satisfied, then no more allocation
-  //     std::vector<double> new_estimatedSinrValues = {};
-  //     for (int alloc_rb_id = 0; alloc_rb_id < users->at(max_cqi_user)->GetListOfAllocatedRBGs()->size(); alloc_rb_id++) {
-  //       double sinr = amc->GetSinrFromCQI(users->at(max_cqi_user)->GetCqiFeedbacks().at(alloc_rb_id * rbg_size)); 
-  //       std::cerr << " allicates RBG: " << alloc_rb_id << " sinr:" << sinr << std::endl;
-  //       new_estimatedSinrValues.push_back(sinr);
-  //     }
-  //     int new_estima = EstimateTBSizeByEffSinr(new_estimatedSinrValues, users->at(max_cqi_user)->GetListOfAllocatedRBGs()->size(), rbg_size);
-  //     std::cerr << "  new_estima:" << new_estima << " request:" << pre_defined_gbr_[max_cqi_user] * 1000 * 1000 / 1000 << std::endl;
-  //     if (new_estima > pre_defined_gbr_[max_cqi_user] * 1000 * 1000 / 1000) {
-  //       ue_satisfied[max_cqi_user] = 1;
-  //       std::cerr << "  user_id: " << max_cqi_user << " is satisfied" << std::endl;
-  //     }
-  //   }
-  // }
-
-  // // print those unallocated RB
-  // std::cerr << "==== final unallocated RBs ====" << std::endl;
-  // for (int i = 0; i < nb_rbgs; i++) {
-  //   int rbg_id = rbgid_impact_pair[i].first;
-  //   if (rbg_availability[rbg_id] == 1) {
-  //     std::cerr << i << "th rbg_id: " << rbgid_impact_pair[i].first << " impact:" << rbgid_impact_pair[i].second;
-  //     // print rbg_impact_ues
-  //     std::cerr << "  rbg_impact_ues(" << rbg_impact_ues[rbg_id].size() << "): ";
-  //     for (int j = 0; j < rbg_impact_ues[rbg_id].size(); j++) {
-  //       std::cerr << rbg_impact_ues[rbg_id][j] << " ";
-  //     }
-  //     std::cerr << std::endl;
-  //   }
-  // }
 
   
   PdcchMapIdealControlMessage* pdcchMsg = new PdcchMapIdealControlMessage();
@@ -927,19 +785,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
   delete pdcchMsg;
 }
 
-
-// Jiajin add
-// input: delay sensitive slices
-// return: rb allocation metric
-// vector<int> DownlinkHeterogenousScheduler::RBsAllocation_EDF(int max_num_rbs, UsersToSchedule* users, vector<int> rb_allocation)
-// {
-  
-//   return ;
-// }
-
-
-
-vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate) {
+vector<int> DownlinkMaxflowScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate) {
 
     // Peter: calculate the sum of the allocation logs
     vector<double> allocate_sum_hist;
@@ -1000,7 +846,7 @@ vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> 
 }
 
 // Jiajin NOTE: actually unused
-double DownlinkHeterogenousScheduler::ComputeSchedulingMetric(
+double DownlinkMaxflowScheduler::ComputeSchedulingMetric(
     UserToSchedule* user, double spectralEfficiency) {
   double metric = 0;
   double averageRate = 1;

@@ -21,7 +21,8 @@ CPP_SRCS += \
 ../src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.cpp \
 ../src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.cpp\
 ../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.cpp \
-../src/protocolStack/mac/packet-scheduler/maxflow.cpp 
+../src/protocolStack/mac/packet-scheduler/maxflow.cpp \
+../src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.cpp
 
 OBJS += \
 ./src/protocolStack/mac/packet-scheduler/delay-edd-rule-downlink-packet-scheduler.o \
@@ -41,7 +42,8 @@ OBJS += \
 ./src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.o \
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.o\
 ./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.o \
-./src/protocolStack/mac/packet-scheduler/maxflow.o
+./src/protocolStack/mac/packet-scheduler/maxflow.o \
+../src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.o
 
 CPP_DEPS += \
 ./src/protocolStack/mac/packet-scheduler/delay-edd-rule-downlink-packet-scheduler.d \
@@ -61,7 +63,8 @@ CPP_DEPS += \
 ./src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.d \
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.d \
 ./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.d \
-./src/protocolStack/mac/packet-scheduler/maxflow.d
+./src/protocolStack/mac/packet-scheduler/maxflow.d \
+./src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.d
 
 
 # Each subdirectory must supply rules for building sources it contributes

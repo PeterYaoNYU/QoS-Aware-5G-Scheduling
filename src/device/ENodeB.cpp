@@ -35,6 +35,7 @@
 #include "../protocolStack/mac/packet-scheduler/packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/roundrobin-uplink-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.h"
 #include "../protocolStack/packet/packet-burst.h"
 #include "Gateway.h"
 #include "NetworkNode.h"
@@ -359,7 +360,14 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
       scheduler = new DownlinkTransportScheduler(config_fname, 6, 5);
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
-      break;      
+      break;     
+
+    // peter: add the Maxflow implementation for a theiretical upperbound.
+    case ENodeB::DLScheduler_MAXFLOW:
+      scheduler = new DownlinkMaxflowScheduler(config_fname);
+      scheduler->SetMacEntity(mac);
+      mac->SetDownlinkPacketScheduler(scheduler);
+      break; 
       
     default:
       throw std::runtime_error("Error: invalid scheduler type");

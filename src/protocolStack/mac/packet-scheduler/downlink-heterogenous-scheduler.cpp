@@ -47,6 +47,7 @@
 #include "../../packet/packet-burst.h"
 #include "../mac-entity.h"
 #include "../../../flows/QoS/QoSParameters.h"
+#include "sort_utils.h"
 
 
 using std::unordered_map;
@@ -288,17 +289,6 @@ int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> e
   int transportBlockSize = amc->GetTBSizeFromMCS(mcs, num_rbg * rbg_size);
   return transportBlockSize;
 }
-
-bool sortByVal(const std::pair<int, int> &a, const std::pair<int, int> &b) {
-    return a.second < b.second; // sort by increasing order of value
-}
-
-bool sortByValDesc(const std::pair<int, int> &a, const std::pair<int, int> &b) {
-    return a.second > b.second; // sort by decreasing order of value
-}
-
-
-
 
 // peter: if there is leftover RBs:
 // if there is unsatisfied UEs, 

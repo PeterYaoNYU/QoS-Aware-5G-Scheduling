@@ -10,10 +10,12 @@ struct NodeTypeGeneral {
 
 struct NodeTypeUE {
     std::string name = "UE";
+    int ue_id;
 };
 
 struct NodeTypeRBGset {
     std::string name = "RBGset";
+    std::vector<int> rbg_id_set;
 };
 
 struct VertexProperties {

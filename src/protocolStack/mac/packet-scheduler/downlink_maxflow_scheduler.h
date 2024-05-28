@@ -21,15 +21,15 @@
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
 
-#ifndef DOWNLINKHETEROGENOUSSCHEDULER_H_
-#define DOWNLINKHETEROGENOUSSCHEDULER_H_
+#ifndef DOWNLINKMaxflowSCHEDULER_H_
+#define DOWNLINKMaxflowSCHEDULER_H_
 
 #include <vector>
 #include <map>
 #include <deque>
 #include "packet-scheduler.h"
 
-class DownlinkHeterogenousScheduler : public PacketScheduler {
+class DownlinkMaxflowScheduler : public PacketScheduler {
  private:
   // below use customizable scheduler params
   int num_slices_ = 1;
@@ -64,8 +64,8 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
  public:
   std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
 
-  DownlinkHeterogenousScheduler(std::string config_fname);
-  virtual ~DownlinkHeterogenousScheduler();
+  DownlinkMaxflowScheduler(std::string config_fname);
+  virtual ~DownlinkMaxflowScheduler();
 
   void SelectFlowsToSchedule();
 
@@ -86,4 +86,4 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
 
 };
 
-#endif /* DOWNLINKHETEROGENOUSSCHEDULER_H_ */
+#endif /* DOWNLINKMaxflowSCHEDULER_H_ */
