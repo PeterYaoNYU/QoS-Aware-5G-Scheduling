@@ -41,9 +41,11 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   
   // Jiajin: initialize pre_defined_gbr as an array of 0 with size of 11. 11 is the number of UEs in the experiment
   // Initialize as (5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55) * 125 = (625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250, 6875)
-  std::vector<double> pre_defined_gbr_ = {625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250}; // 10 UEs
+  std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
+  //std::vector<double> pre_defined_gbr_ = {20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20}; // Mbps
+  //std::vector<double> pre_defined_gbr_ = {625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250}; // 10 UEs
   //std::vector<double> pre_defined_gbr_ = {1250, 2500, 3750, 5000, 6250, 7500, 8750, 10000}; //, 11250, 12500}; // 10 UEs
-
+  //(625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250) * 8 = (5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000)
 
   const double beta_ = 0.1;
 
@@ -73,6 +75,7 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   // Jiajin add
   std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate); // byDDL or byGBR: from min to max
   //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
+  int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rb, int rbg_size);
 
 };
 

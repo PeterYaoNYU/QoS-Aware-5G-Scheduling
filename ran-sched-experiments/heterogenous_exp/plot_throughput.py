@@ -7,15 +7,10 @@ import numpy as np
 INTRA=""
 TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR= "less_ue"
+INPUT_DIR= "configs" #"less_ue"
 FTYPE=".pdf"
-<<<<<<< HEAD
-n_users= 225#400 #225 #600 #450
-n_slices = 15#20 #15 #20 #20
-=======
-n_users= 250 #600 #450
-n_slices = 5 #20 #20
->>>>>>> d7468b07b285a3e20cccb08ca9a4dc3540b42e66
+n_users= 10 #400 #225 #600 #450
+n_slices = 1 #20 #15 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
