@@ -9,7 +9,7 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR= "configs" #"less_ue"
 FTYPE=".pdf"
-n_users= 10 #400 #225 #600 #450
+n_users= 100 #400 #225 #600 #450
 n_slices = 1 #20 #15 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
@@ -26,7 +26,7 @@ def get_cdf(data, ratio=0):
 # get the per-second cumulative sent bytes
 def get_cumubytes(fname, n_slices):
     begin_ts = 0
-    end_ts = 10000
+    end_ts = 6000
     cumu_bytes = [0 for i in range(n_users)]
     cumu_rbs = [0 for i in range(n_users)]
     flow_to_slice = [-1 for i in range(n_users)]
@@ -52,6 +52,7 @@ def get_cumubytes(fname, n_slices):
                 #print("flow", words[2])
                 flow = int(words[2])
                 sid = int(words[12])
+                #print  ("flow: ", flow, "words:", words)
                 cumu_rbs[flow] = int( words[6] ) / (end_ts / 1000 )
                 cumu_bytes[flow] = int( words[4] ) / ( end_ts / 1000 )
                 flow_to_slice[flow] = sid

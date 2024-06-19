@@ -38,10 +38,11 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   std::vector<SchedulerAlgoParam> slice_algo_params_;
   std::vector<int> slice_priority_;
   std::vector<double> slice_rbs_offset_;
-  
+
+  std::vector<double> pre_defined_gbr_;
   // Jiajin: initialize pre_defined_gbr as an array of 0 with size of 11. 11 is the number of UEs in the experiment
   // Initialize as (5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55) * 125 = (625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250, 6875)
-  std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
+  //std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
   //std::vector<double> pre_defined_gbr_ = {20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20}; // Mbps
   //std::vector<double> pre_defined_gbr_ = {625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250}; // 10 UEs
   //std::vector<double> pre_defined_gbr_ = {1250, 2500, 3750, 5000, 6250, 7500, 8750, 10000}; //, 11250, 12500}; // 10 UEs
@@ -53,8 +54,10 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   // peter: a function pointer that points to the inter slice algorithm
   double (*inter_metric_)(UserToSchedule*, int);
 
+  std::vector<int> dataToTransmitInWindow; //Jiajin 0617
   // Peter: Sliding window to keep track of how many RBs have been allocated to each UE already
   const int WINDOW_SIZE = 1000;
+  int remaining_window = 1;//Jiajin 0617
   int num_windows_; 
   std::vector<std::deque<double>> allocation_logs_;
 

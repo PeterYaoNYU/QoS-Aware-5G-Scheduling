@@ -9,7 +9,7 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR= "configs"#"less_ue"
 FTYPE=".pdf"
-n_users= 10#400 #225 #600 #450
+n_users= 100#400 #225 #600 #450
 n_slices = 1#20 #15 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
@@ -26,7 +26,7 @@ def get_cdf(data, ratio=0):
 # get the per-second cumulative sent bytes
 def get_cumubytes(fname, n_slices):
     begin_ts = 0
-    end_ts = 10000
+    end_ts = 6000
     cumu_bytes = [0 for i in range(n_users)]
     cumu_rbs = [0 for i in range(n_users)]
     flow_to_slice = [-1 for i in range(n_users)]
@@ -282,8 +282,8 @@ for scheme_to_plot in schemes_to_plot:
     plt.xticks(range(len(cumu_bytes)), [i+1 for i in range(len(cumu_bytes))])
     print(len(cumu_bytes))
     # plot a line: y = x
-    target = [(i+1)*5 for i in range(len(cumu_bytes))]
-    plt.plot(range(len(cumu_bytes)), target, color='red', linestyle='--')
+    # target = [(i+1)*5 for i in range(len(cumu_bytes))]
+    # plt.plot(range(len(cumu_bytes)), target, color='red', linestyle='--')
     print("perUE_throughput:", cumu_bytes)
     # plt.axhline(y=100000*8/1000/1000, color='r', linestyle='--') # 12500 * 8
     # plt.axhline(y=300000*8/1000/1000, color='r', linestyle='--') # 37500 * 8

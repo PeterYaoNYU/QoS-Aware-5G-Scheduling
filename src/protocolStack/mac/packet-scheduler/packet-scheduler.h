@@ -111,6 +111,7 @@ class PacketScheduler {
    public:
     RadioBearer* m_bearers[MAX_BEARERS];
     int m_dataToTransmit[MAX_BEARERS];
+    //int m_dataToTransmitInWindow[MAX_BEARERS]; //Jiajin add, bytes
     int m_requiredRBs;
     int m_lowerbound_sorted_idx; //Jiajin add: the lowerbound idx in sorted_RB, not the id of RB
     UserToSchedule(int, NetworkNode*);
