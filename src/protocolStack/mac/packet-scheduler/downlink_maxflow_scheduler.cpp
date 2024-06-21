@@ -49,7 +49,8 @@
 #include "../mac-entity.h"
 #include "../../../flows/QoS/QoSParameters.h"
 #include "sort_utils.h"
-
+#include "maxflow.cpp"
+#include <sstream>
 
 using std::unordered_map;
 using std::vector;
@@ -58,6 +59,18 @@ using std::map;
 // Peter: The coordinates are likely to represent the RBG (i) and the slice index (j).
 using coord_t = std::pair<int, int>;
 using coord_cqi_t = std::pair<coord_t, double>;
+
+// Peter: helper to get the string representation of the numbers inside the combination
+std::string vectorToString(const std::vector<int>& vec, const std::string& delimiter = ", ") {
+    std::ostringstream oss;
+    for (size_t i = 0; i < vec.size(); ++i) {
+        if (i != 0) {
+            oss << delimiter;
+        }
+        oss << vec[i];
+    }
+    return oss.str();
+}
 
 // Peter: to help with the maxflow implementation, use generic programming to calculate the combinatorials of the valid sets of RGBs
 // Function to generate combinations
@@ -674,9 +687,22 @@ void DownlinkMaxflowScheduler::RBsAllocation() {
   for (int i = 0; i < nb_rbgs; i++) {
     ue_satisfied[i] = 0;
   }
+  
+  // ========== Construct the Max Flow Graph ==========
+  // peter: add Nodes for UE:
+    MaxFlowGraph maxFlowGraph;
+    std::vector<Vertex> ue_vertices;
+    for (int i = 0; i < users->size(); i++) {
+        Vertex temp = maxFlowGraph.addVertex(NodeTypeUE("UE" + std::to_string(i), i));
+        ue_vertices.push_back(temp);
+    }
+
+    // std::vector<Vertex> rbg_comb_vertices;
+
   // ========== Compute the Combinatorials ==========
   // Peter: Because I want to avoid duplicates, I used a std::set here
-  std::set<std::vector<int>> rbg_combinatorial_set;
+//   std::set<std::vector<int>> rbg_combinatorial_set;
+  std::map<std::vector<int>, Vertex> rbg_combinatorial_set;
   for (int i = 0; i < users->size(); i++) {
     int ue_id = user_requestRB_pair[i].first; 
     int requested_rbg_count = user_requestRB_pair[i].second;
@@ -691,9 +717,28 @@ void DownlinkMaxflowScheduler::RBsAllocation() {
     auto combinatorials = combinations(candidate_rbg_id_for_comb, requested_rbg_count);
     for (auto it = combinatorials.begin(); it != combinatorials.end(); it++) {
       std::vector<int> comb = *it;
-      std::sort(comb.begin(), comb.end());
-      rbg_combinatorial_set.insert(comb);
+      std::sort(comb.begin(), comb.end()); 
+      auto iter = rbg_combinatorial_set.find(comb);
+      if (iter != rbg_combinatorial_set.end()) {
+        maxFlowGraph.addEdge(ue_vertices[i], iter->second, 1);
+      } else {
+        auto string_of_comb = vectorToString(comb);
+        Vertex comb_vertex = maxFlowGraph.addVertex(NodeTypeRBGset("comb " + string_of_comb, comb));
+        std::cerr << "initiating a new combinatorial vertex: " << string_of_comb << std::endl;
+        rbg_combinatorial_set.insert(std::make_pair(comb, comb_vertex));
+        maxFlowGraph.addEdge(ue_vertices[i], comb_vertex, 1);
+      }
     }
+
+    // init the source, and connect it to every UE node
+    Vertex source = maxFlowGraph.addVertex(NodeTypeGeneral("source"));
+    for (int i = 0; i < ue_vertices.size(); i++) {
+        maxFlowGraph.addEdge(source, ue_vertices[i], 1);
+    }
+    // init the sink
+    Vertex sink = maxFlowGraph.addVertex(NodeTypeGeneral("sink"));
+    // init the controller nodes to make sure that every RBG is picked only once. 
+
     
     // print the ue_id, and the combinatorials calculated:
     std::cerr << "ue_id: " << ue_id << ", requested_rbg_count: " << requested_rbg_count << ", candidate_rbg_id_for_comb(" << candidate_rbg_id_for_comb.size() << "): ";
@@ -702,7 +747,6 @@ void DownlinkMaxflowScheduler::RBsAllocation() {
     }
     std::cerr << std::endl;
   }
-  // ========== Construct the Max Flow Graph ==========
 
 
 

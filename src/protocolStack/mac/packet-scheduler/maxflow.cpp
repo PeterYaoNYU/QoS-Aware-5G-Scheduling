@@ -6,16 +6,22 @@
 
 struct NodeTypeGeneral {
     std::string name = "General";
+
+    NodeTypeGeneral(const std::string& n) : name(n) {}
 };
 
 struct NodeTypeUE {
     std::string name = "UE";
     int ue_id;
+
+    NodeTypeUE(const std::string& n, int id) : name(n), ue_id(id) {}
 };
 
 struct NodeTypeRBGset {
     std::string name = "RBGset";
     std::vector<int> rbg_id_set;
+
+    NodeTypeRBGset(const std::string& n, const std::vector<int>& rbg_ids) : name(n), rbg_id_set(rbg_ids) {}
 };
 
 struct VertexProperties {
