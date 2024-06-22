@@ -912,7 +912,6 @@ static vector<int> MaximizeCellWithCap(double** flow_spectraleff,
                                 DownlinkTransportScheduler::UsersToSchedule* users,
                                 DownlinkTransportScheduler* downlink_transport_scheduler, 
                                 std::vector<bool>& satisfied_ues) {
-  // it's ok that the quota is negative
   vector<coord_cqi_t> sorted_cqi;
   vector<int> slice_rbgs(nb_slices, 0);
   vector<int> rbg_to_slice(nb_rbgs, -1);

@@ -80,6 +80,7 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
   int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rb, int rbg_size);
 
+  void init_flow_spectraleff(double** flow_spectraleff, int nb_rbgs, UsersToSchedule* users, int count_ue_who_need_one, std::vector<std::pair<int, int>> maxcell_user_rbg_need, std::vector<std::pair<int, int>> maxcell_rbgid_impact, int rbg_size);
 };
 
 #endif /* DOWNLINKHETEROGENOUSSCHEDULER_H_ */
