@@ -46,6 +46,7 @@
 #include "../../packet/Packet.h"
 #include "../../packet/packet-burst.h"
 #include "../mac-entity.h"
+#include "sort_utils.h"
 
 using std::unordered_map;
 using std::vector;
@@ -157,6 +158,16 @@ DownlinkTransportScheduler::DownlinkTransportScheduler(
       user_to_slice_.push_back(i);
     }
   }
+
+  // modification: read the gbr directly from the config file
+  const Json::Value& ues_gbr = obj["ues_gbr"];
+  int num_gbr = ues_gbr.size();
+  assert(num_gbr == num_ue);
+  for (int i = 0; i < num_gbr; i++) {
+    pre_defined_gbr_.push_back(ues_gbr[i].asDouble());
+    dataToTransmitInWindow.push_back(WINDOW_SIZE / 1000 * pre_defined_gbr_[i] * 1000 * 1000);
+  }
+
   const Json::Value& slice_schemes = obj["slices"];
   for (int i = 0; i < slice_schemes.size(); i++) {
     int n_slices = slice_schemes[i]["n_slices"].asInt();
@@ -348,6 +359,13 @@ void DownlinkTransportScheduler::DoStopSchedule(void) {
         user->m_bearers[i]->UpdateTransmittedBytes(dataTransmitted);
         user->m_bearers[i]->UpdateCumulateRBs(
             user->GetListOfAllocatedRBs()->size());
+        // update the window
+        std::cerr << " ==GetUserID():" << user->GetUserID() << ": " << dataToTransmitInWindow[user->GetUserID()] << " - ";
+        dataToTransmitInWindow[user->GetUserID()] -= dataTransmitted * 8;
+        std::cerr << dataTransmitted * 8 << " = " << dataToTransmitInWindow[user->GetUserID()] << std::endl;
+        if (dataToTransmitInWindow[user->GetUserID()] <= 0) {
+          dataToTransmitInWindow[user->GetUserID()] = 0;
+        }
         std::cerr << GetTimeStamp() << " app: "
                   << user->m_bearers[i]->GetApplication()->GetApplicationID()
                   << " cumu_bytes: " << user->m_bearers[i]->GetCumulateBytes()
@@ -693,6 +711,195 @@ static vector<std::pair<int, int>> AllocateLeftOverRBs(std::vector<bool>& satisf
       }
     }
   }
+  return alloc_res;
+}
+
+int DownlinkTransportScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rbg, int rbg_size) { 
+  if (num_rbg == 0) {
+    return 0;
+  }
+  AMCModule* amc = GetMacEntity()->GetAmcModule();
+  double effectiveSinr = GetEesmEffectiveSinr(estimatedSinrValues);
+  int mcs = amc->GetMCSFromCQI(amc->GetCQIFromSinr(effectiveSinr));
+  int transportBlockSize = amc->GetTBSizeFromMCS(mcs, num_rbg * rbg_size);
+  return transportBlockSize;
+}
+
+// peter: if there is leftover RBs:
+// if there is unsatisfied UEs, 
+// for each UE, determine the number of RBs neeeded minimum (from the leftover)
+// then allocate based on the number needed and popularity, just like in hetero scheduler 
+// In the unlikey event that all UEs have been satisifed in this TTI, allocate according to the highest throughput
+static vector<std::pair<int, int>> AllocateLeftOverRBsHetero(std::vector<bool>& satisfied_ues, DownlinkTransportScheduler* downlink_transport_scheduler, std::vector<bool>& rbg_availability, int rbg_size, std::map<int, std::vector<double>>& current_sinr_vals)
+{
+  // @param alloc_res: the return vector of this function
+  // the first is the rbg_id, the second is the UE that this leftover RBG should be assigned to 
+  std::vector<std::pair<int, int>> alloc_res;
+  // check if there is leftover RBs
+  bool all_allocated = std::all_of(rbg_availability.begin(), rbg_availability.end(), [](bool val){ return ! val; });
+  if (all_allocated) {
+    std::cerr << "There is no leftover resource block" << std::endl;
+    return alloc_res;
+  }
+
+  // first check how many leftover RBs there is
+  int num_leftover_rbg = std::count(rbg_availability.begin(), rbg_availability.end(), true);
+  std::cerr << "the number of leftover rbs is: " << num_leftover_rbg <<std::endl;
+
+  std::vector<int> candidate_ues;
+  std::vector<int> all_ues;
+  // check if all UEs have already been satisfied
+  bool allTrue = std::all_of(satisfied_ues.begin(), satisfied_ues.end(), [](bool value) {return value; });
+  if (allTrue) {
+    std::cerr << "all users alreasy satisfied in this TTI " << std::endl;
+    // allocate according to the max throughput
+    for (auto i = 0 ; i < satisfied_ues.size(); i++) {
+      candidate_ues.push_back(static_cast<int>(i));
+    }
+  } else {
+    // get all the unsatisfied UEs out for choices
+    std::cerr << "candidate UEs for further allocation: ";
+    for (auto i = 0; i < satisfied_ues.size(); i++ ) {
+      if (!satisfied_ues[i]) {
+        candidate_ues.push_back(static_cast<int>(i));
+        std::cerr << i << ", ";
+      }
+    }
+    std::cerr << " " << std::endl;
+  }
+
+  for (auto i = 0 ; i < satisfied_ues.size(); i++) {
+    all_ues.push_back(static_cast<int>(i));
+  }
+
+  // @param candidate_ues hold the ues that should be allocated (either unsatisifed, or all have already been satisfied)
+  // allocate to them based on throughput
+  // under the premise that it does not lower the overal Sinr
+  auto amc = downlink_transport_scheduler->GetMacEntity()->GetAmcModule();
+  auto users = downlink_transport_scheduler->GetUsersToSchedule();
+
+  std::cerr << "#UEs to ask for leftover: " << all_ues.size() << "out of all #ues: " << users->size() << std::endl;
+
+  // init the variables that is needed to store the relevant statistics 
+  int nb_rbs = downlink_transport_scheduler->GetMacEntity()->GetDevice()->GetPhy()->GetBandwidthManager()->GetDlSubChannels().size();
+  nb_rbs = nb_rbs - (nb_rbs % rbg_size);
+  int nb_rbgs = nb_rbs / rbg_size;
+  std::vector<pair<int, int>> user_requestRB_pair; // user_id -> #rb_needed
+  std::vector<pair<int, int>> rbgid_impact_pair; // rbg_id -> impact: number of UEs that can be suitable for
+  std::map<int, vector<int>> rbg_impact_ues; // just for record
+  bool metrics[nb_rbgs][users->size()]; // 1: the RB suitable for the UE, 0: not suitable
+  for (int i = 0; i < nb_rbgs; i++) { // initialization
+    rbgid_impact_pair.push_back(make_pair(i, 0));
+    for (int j = 0; j < users->size(); j++) {
+      metrics[i][j] = 0;
+    }
+    rbg_impact_ues.insert(make_pair(i, vector<int>()));
+  }
+
+  // for each candidate UE, first sort its CQI for each RB. Then determine the min number of RBs needed
+  for (int i = 0; i < candidate_ues.size(); i++) {
+    int num_RBG = 0;
+    // current RBG that we are checking. If not available, just skip over it. 
+    int current_RBG = 0; 
+    int available_TBSize = 0;
+    vector<double> estimatedSinrValues = {};
+    DownlinkTransportScheduler::UserToSchedule* user = users->at(candidate_ues[i]);
+
+    
+    int request = downlink_transport_scheduler->dataToTransmitInWindow[candidate_ues[i]] / (downlink_transport_scheduler->remaining_window); // bits
+    while (available_TBSize < request) {
+      num_RBG++;
+      if (num_RBG > num_leftover_rbg) {
+        break;
+      }
+      int rbg_id = user->GetSortedRBGIds().at(current_RBG);
+      while (rbg_availability[rbg_id] == false && current_RBG < rbg_availability.size()) {
+        current_RBG++;
+        rbg_id = user->GetSortedRBGIds().at(current_RBG);
+      }
+      if (current_RBG >= rbg_availability.size()) {
+        break;
+      }
+      double sinr = amc->GetSinrFromCQI(user->GetCqiFeedbacks().at(rbg_id * rbg_size)); 
+      estimatedSinrValues.push_back(sinr);
+      available_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(estimatedSinrValues, num_RBG, rbg_size);
+      // move on to the next biggest RBG in terms of CQI for this unsatisifed UE
+      current_RBG++;
+    }
+
+    // the min #RBG needed is determined, need to find the lower index of the rbgs that can be of use to this ue
+    // always remember to check RB availability here, cause we are only allocating leftover here 
+    if (request > 0 && num_RBG <= num_leftover_rbg) {
+      user_requestRB_pair.push_back(std::make_pair(user->GetUserID(), num_RBG));
+      // need to differentiate here whether the lower bound idx should be current RBG or num_RBG
+      int lower_bound_idx = current_RBG;
+      while (available_TBSize >= request && lower_bound_idx < nb_rbgs ) {
+        lower_bound_idx += 1;
+        estimatedSinrValues.pop_back();
+        int rbg_id = user->GetSortedRBGIds().at(lower_bound_idx-1);
+        while (rbg_availability[rbg_id] == false && lower_bound_idx < nb_rbgs) {
+          lower_bound_idx++;
+          rbg_id = user->GetSortedRBGIds().at(lower_bound_idx-1);
+        }
+        if (lower_bound_idx > nb_rbgs) {
+          break;
+        }
+
+        rbg_id = user->GetSortedRBGIds().at(lower_bound_idx-1);
+        double sinr =  amc->GetSinrFromCQI(user->GetCqiFeedbacks().at(rbg_id * rbg_size));
+        estimatedSinrValues.push_back(sinr);
+        available_TBSize = downlink_transport_scheduler->EstimateTBSizeByEffSinr(estimatedSinrValues, num_RBG, rbg_size);
+      }
+      lower_bound_idx -= 1;
+      user->SetLowerBoundSortedIdx(lower_bound_idx - 1);
+
+      // update the metrics
+      for (int i = 0; i < lower_bound_idx ; i++ ){
+        int rbg_id = user->GetSortedRBGIds().at(i);
+        if (!rbg_availability[rbg_id]) {
+          continue;
+        }
+        metrics[rbg_id][user->GetUserID()] = 1;
+        rbg_impact_ues[rbg_id].push_back(user->GetUserID());
+        rbgid_impact_pair[rbg_id].second += 1;
+      }
+    }
+  }
+
+
+  sort(user_requestRB_pair.begin(), user_requestRB_pair.end(), sortByVal); // min #rb first
+  sort(rbgid_impact_pair.begin(), rbgid_impact_pair.end(), sortByVal); // min impact first
+
+  for (int i = 0; i < user_requestRB_pair.size(); i++) {
+    int user_id = user_requestRB_pair[i].first;
+    int num_RBG_needed = user_requestRB_pair[i].second;
+    if (num_RBG_needed > nb_rbgs) {
+      std::cerr << "Warning, user_id: " << user_id << " cannot be satisfied, required RBGs: " << num_RBG_needed << std::endl;
+      continue;
+    }
+
+    int allocated_RBG_num = 0;
+    for (int j = 0; j < nb_rbgs; j++) {
+      int rbg_id = rbgid_impact_pair[j].first;
+      if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
+        //std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
+        //std::cerr << "]" << std::endl;
+
+        alloc_res.push_back(std::make_pair(rbg_id, user_id));
+        rbg_availability[rbg_id] = 0;
+        allocated_RBG_num += 1;
+        if (allocated_RBG_num == num_RBG_needed) 
+        {
+          satisfied_ues[user_id] = 1;
+          break;
+        }
+      }
+    }
+  }
+
+  int num_final_leftover_rbg = std::count(rbg_availability.begin(), rbg_availability.end(), true);
+
+  std::cerr << "allocated leftover, the number of allocated RBGs: " << alloc_res.size() << ". And the number of RBG still left is " << num_final_leftover_rbg << std::endl;
   return alloc_res;
 }
 
@@ -1068,7 +1275,10 @@ void DownlinkTransportScheduler::RBsAllocation() {
     }
 
     if (inter_sched_ == 6) {
-      auto alloc_res = AllocateLeftOverRBs(satisfied_ues, this, rbg_availability, rbg_size, current_sinr_vals);
+      // this is not good enough. Many RB allocated may cause changes. So we revise with new heuristics
+      // auto alloc_res = AllocateLeftOverRBs(satisfied_ues, this, rbg_availability, rbg_size, current_sinr_vals);
+
+      auto alloc_res = AllocateLeftOverRBsHetero(satisfied_ues, this, rbg_availability, rbg_size, current_sinr_vals);
       for (auto iter  = alloc_res.begin(); iter != alloc_res.end(); iter++) {
         int rbg_id = iter->first;
         auto uindex = iter->second;

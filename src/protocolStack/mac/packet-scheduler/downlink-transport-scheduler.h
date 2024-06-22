@@ -25,6 +25,7 @@
 #include <vector>
 #include <map>
 #include "packet-scheduler.h"
+#include <deque>
 
 class DownlinkTransportScheduler : public PacketScheduler {
  private:
@@ -74,8 +75,21 @@ class DownlinkTransportScheduler : public PacketScheduler {
   // peter: static method to get TB size from sinr values
   int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int rbg_size);
   // peter: for preliminary code, use this vector for GBR:
-  std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
+  // std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
+  // read the predefined gbr instead from the json file
+  std::vector<double> pre_defined_gbr_;
   std::vector<int> pre_defined_gbr_bits_per_second = {};
+
+  // with the new version, we adopt an experiment where the sliding window is disjoint 
+  std::vector<int> dataToTransmitInWindow; //Jiajin 0617
+
+  // if disjoint sliding window
+  const int WINDOW_SIZE = 1000;
+  int remaining_window = 1;//Jiajin 0617
+
+  std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate); // byDDL or byGBR: from min to max
+  //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
+  int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rb, int rbg_size);
 };
 
 #endif /* DOWNLINKPACKETSCHEDULER_H_ */

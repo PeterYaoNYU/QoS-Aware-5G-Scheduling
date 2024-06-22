@@ -363,11 +363,11 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
       break;     
 
     // peter: add the Maxflow implementation for a theiretical upperbound.
-    case ENodeB::DLScheduler_MAXFLOW:
-      scheduler = new DownlinkMaxflowScheduler(config_fname);
-      scheduler->SetMacEntity(mac);
-      mac->SetDownlinkPacketScheduler(scheduler);
-      break; 
+    // case ENodeB::DLScheduler_MAXFLOW:
+    //   scheduler = new DownlinkMaxflowScheduler(config_fname);
+    //   scheduler->SetMacEntity(mac);
+    //   mac->SetDownlinkPacketScheduler(scheduler);
+    //   break; 
       
     default:
       throw std::runtime_error("Error: invalid scheduler type");
