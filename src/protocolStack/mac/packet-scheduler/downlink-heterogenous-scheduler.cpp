@@ -480,6 +480,10 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
     rbg_impact_ues.insert(make_pair(i, vector<int>()));
   }
+  // for satisfaction statistics:
+  int window_satisfied_ue_count = 0;
+
+
   //std::cerr << "==== initialized==== metrics[" << nb_rbgs << "][" << users->size() << "] ,rbgid_impact_pair[" << nb_rbgs << "]" << std::endl;
   //std::cerr << "==== Estimate UE: # RB needed, RB lower bound, RB impact ====" << std::endl;
   // Sort CQI for each UE & Calculate RB impact 
@@ -497,7 +501,17 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     int available_TBSize = 0;
     vector<double> estimatedSinrValues = {};
     // std::cerr << " remaining_window=" << remaining_window << " uid:" << user->GetUserID() << " data:" << dataToTransmitInWindow[user->GetUserID()] << std::endl;
-    std::cerr << "  dataToTransmitInWindow[" << user->GetUserID() << "]=" << dataToTransmitInWindow[user->GetUserID()] << std::endl;
+
+
+    // std::cerr << "remaining win: " << remaining_window << "  dataToTransmitInWindow[" << user->GetUserID() << "]=" << dataToTransmitInWindow[user->GetUserID()] << std::endl;
+    // if (remaining_window == 1) {
+    //   window_satisfied_ue_count += 1;
+    // }
+    // if (user->GetUserID() == users->size() - 1) {
+    //   std::cerr << "window_satisfied_ue_count: " << window_satisfied_ue_count << std::endl;
+    // }
+
+    
     //int request = int(pre_defined_gbr_[user->GetUserID()]) * 1000 * 1000 / 1000; // Mbps -> bits per TTI // TODO: check the User ID
     int request = dataToTransmitInWindow[user->GetUserID()] / remaining_window; // bits per TTI 
     // std::cerr << "== user_id: " << user->GetUserID() << ", request:" << request << " = toTx:" << dataToTransmitInWindow[user->GetUserID()] << " / remaining:" << remaining_window << std::endl;
@@ -887,8 +901,8 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
         //   //std::cerr<< GetTimeStamp() << "Actual Allocate rbid: " << int(rbid / 4) << " metric:" << metrics[rbid][ueid] << std::endl;
         // }
 
-        fprintf(stderr, "rbid: %d\n", rbid);
-        fprintf(stderr, "ue->GetCqiFeedbacks().size(): %d\n", ue->GetCqiFeedbacks().size());
+        // fprintf(stderr, "rbid: %d\n", rbid);
+        // fprintf(stderr, "ue->GetCqiFeedbacks().size(): %d\n", ue->GetCqiFeedbacks().size());
         assert(rbid < ue->GetCqiFeedbacks().size());
 
         // if (rbid % rbg_size == 0)
