@@ -36,6 +36,7 @@
 #include "../protocolStack/mac/packet-scheduler/roundrobin-uplink-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.h"
 #include "../protocolStack/packet/packet-burst.h"
 #include "Gateway.h"
 #include "NetworkNode.h"
@@ -357,7 +358,7 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
 
     // peter: Radiosaber that stops allocating when the GBR is reached. 
     case ENodeB::DLScheduler_MAXCELL_CAP:
-      scheduler = new DownlinkTransportScheduler(config_fname, 6, 5);
+      scheduler = new OptMaxcellScheduler(config_fname, 6, 5);
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
       break;     

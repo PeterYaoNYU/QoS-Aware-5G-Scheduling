@@ -18,10 +18,6 @@
  *
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
-
-#ifndef DOWNLINKTRANSPORTSCHEDULER_H_
-#define DOWNLINKTRANSPORTSCHEDULER_H_
-
 #include <vector>
 #include <map>
 #include "packet-scheduler.h"
@@ -37,7 +33,7 @@ class OptMaxcellScheduler : public PacketScheduler {
   std::vector<int> slice_priority_;
   std::vector<double> slice_rbs_offset_;
 
-  std::vector<double> pre_defined_gbr_;
+  // std::vector<double> pre_defined_gbr_;
 
   // Peter: Keep a running score to measure how well each request is satisfied. 
   std::vector<double> slice_score_;
@@ -60,7 +56,12 @@ class OptMaxcellScheduler : public PacketScheduler {
   // peter: if cap is set to 1, stop allocating when enough has been allocated through maxcell
   int cap = 0;
 
-  std::vector<int> dataToTransmitInWindow; 
+  // std::vector<int> dataToTransmitInWindow; 
+  // const int WINDOW_SIZE = 1000;
+  // int remaining_window = 1;
+  // int num_windows_;
+  // std::vector<std::deque<double>> allocation_logs_;
+  
 
  public:
   OptMaxcellScheduler(std::string config_fname, int algo, int metric);
@@ -96,4 +97,3 @@ class OptMaxcellScheduler : public PacketScheduler {
   int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rb, int rbg_size);
 };
 
-#endif /* DOWNLINKPACKETSCHEDULER_H_ */
