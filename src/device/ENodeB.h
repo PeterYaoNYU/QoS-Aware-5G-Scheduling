@@ -80,8 +80,11 @@ class ENodeB : public NetworkNode {
     DLScheduler_VOGEL,
     DLSScheduler_MAXCELL_FAIRNESS,
     DLSScheduler_MAXCELL_MLWDF,
-    DLSScheduler_HETEROGENOUS,
-    DLSScheduler_MAXCELL_WITH_GBR_CAP 
+    DLSScheduler_RANDOM, //Peter: Baseline of variance
+    DLSScheduler_MIX, // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
+    DLScheduler_HETEROGENOUS,
+    DLScheduler_MAXCELL_CAP,
+    DLScheduler_MAXFLOW
   };
   enum ULSchedulerType {
     ULScheduler_TYPE_MAXIMUM_THROUGHPUT,

@@ -37,6 +37,9 @@
 #include "../protocolStack/mac/packet-scheduler/mt-uplink-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/roundrobin-uplink-packet-scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.h"
 #include "../protocolStack/packet/packet-burst.h"
 #include "Gateway.h"
 #include "NetworkNode.h"
@@ -344,12 +347,32 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
       mac->SetDownlinkPacketScheduler(scheduler);
       break;
 
-    case ENodeB::DLSScheduler_MAXCELL_WITH_GBR_CAP:
-      scheduler = new DownlinkMaxcellGBRCapScheduler(config_fname, 2, 0);
+    case ENodeB::DLSScheduler_MIX: // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
+      scheduler = new DownlinkTransportScheduler(config_fname, 6, 4);
+      scheduler->SetMacEntity(mac);
+      mac->SetDownlinkPacketScheduler(scheduler);
+      break;
+    
+    case ENodeB::DLScheduler_HETEROGENOUS:
+      scheduler = new DownlinkHeterogenousScheduler(config_fname);
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
       break;
 
+    // peter: Radiosaber that stops allocating when the GBR is reached. 
+    case ENodeB::DLScheduler_MAXCELL_CAP:
+      scheduler = new OptMaxcellScheduler(config_fname, 6, 5);
+      scheduler->SetMacEntity(mac);
+      mac->SetDownlinkPacketScheduler(scheduler);
+      break;     
+
+    // peter: add the Maxflow implementation for a theiretical upperbound.
+    // case ENodeB::DLScheduler_MAXFLOW:
+    //   scheduler = new DownlinkMaxflowScheduler(config_fname);
+    //   scheduler->SetMacEntity(mac);
+    //   mac->SetDownlinkPacketScheduler(scheduler);
+    //   break; 
+      
     default:
       throw std::runtime_error("Error: invalid scheduler type");
       break;

@@ -8,11 +8,11 @@ import numpy as np
 
 
 folder = "configs"
-#filename = "nvs_0.log"
+filename = "nvs_0.log"
 #filename = "maxcell_0.log"
-filename = "single_0.log"
-#scheme = "radiosaber"
-scheme = "Ours"
+#filename = "single_0.log"
+scheme = "nvs"
+#scheme = "Ours"
 n_users = 100
 # 1s = 1000ms
 period = 1000 # throughput measurement window size: number of TTIs

@@ -18,16 +18,12 @@
  *
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
-
-#ifndef DOWNLINKTRANSPORTSCHEDULER_H_
-#define DOWNLINKTRANSPORTSCHEDULER_H_
-
 #include <vector>
 #include <map>
 #include "packet-scheduler.h"
 #include <deque>
 
-class DownlinkTransportScheduler : public PacketScheduler {
+class OptMaxcellScheduler : public PacketScheduler {
  private:
   // below use customizable scheduler params
   int num_slices_ = 1;
@@ -36,6 +32,8 @@ class DownlinkTransportScheduler : public PacketScheduler {
   std::vector<SchedulerAlgoParam> slice_algo_params_;
   std::vector<int> slice_priority_;
   std::vector<double> slice_rbs_offset_;
+
+  // std::vector<double> pre_defined_gbr_;
 
   // Peter: Keep a running score to measure how well each request is satisfied. 
   std::vector<double> slice_score_;
@@ -58,9 +56,16 @@ class DownlinkTransportScheduler : public PacketScheduler {
   // peter: if cap is set to 1, stop allocating when enough has been allocated through maxcell
   int cap = 0;
 
+  // std::vector<int> dataToTransmitInWindow; 
+  // const int WINDOW_SIZE = 1000;
+  // int remaining_window = 1;
+  // int num_windows_;
+  // std::vector<std::deque<double>> allocation_logs_;
+  
+
  public:
-  DownlinkTransportScheduler(std::string config_fname, int algo, int metric);
-  virtual ~DownlinkTransportScheduler();
+  OptMaxcellScheduler(std::string config_fname, int algo, int metric);
+  virtual ~OptMaxcellScheduler();
 
   void SelectFlowsToSchedule();
 
@@ -92,4 +97,3 @@ class DownlinkTransportScheduler : public PacketScheduler {
   int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rb, int rbg_size);
 };
 
-#endif /* DOWNLINKPACKETSCHEDULER_H_ */
