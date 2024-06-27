@@ -90,8 +90,8 @@ def get_throughput(fname):
 # thoughput per ue
 cumu_rbs, cumu_bytes, per_ue_thr, ttis = get_throughput(folder + "/" + filename)
 
-for ue in per_ue_thr:
-    print("UE: ", ue, " throughput: ", per_ue_thr[ue])
+# for ue in per_ue_thr:
+#     print("UE: ", ue, " throughput: ", per_ue_thr[ue])
     
 x = [i/1000 for i in ttis[1:]]
 
@@ -121,8 +121,11 @@ for i in range(n_users):
         if tti not in gbr_result[gbr[i]]["acheived"]:
             gbr_result[gbr[i]]["acheived"][tti] = 0
             gbr_result[gbr[i]]["penalty"] = 0
-        if tti_thr_pair[tti] >= gbr[i]:
+        if tti_thr_pair[tti] >= gbr[i] *0.99:
             gbr_result[gbr[i]]["acheived"][tti] += 1
+        else:
+            print("i", i, "tti:", tti, "tti_thr_pair[tti]:", tti_thr_pair[tti], "gbr[i]:", gbr[i])
+            #print("per_ue_thr[ue]:", per_ue_thr[i])
         gbr_result[gbr[i]]["penalty"] += abs(tti_thr_pair[tti] - gbr[i]) / gbr[i]
 
     # gbr_result[gbr[i]]["diff"] += abs(per_ue_thr[i][end_ts] - grb[i])
@@ -154,8 +157,9 @@ fig, ax = plt.subplots()
 
 for i, gbr in enumerate(gbr_values):
     achieved = [gbr_result[gbr]['acheived'][t] / gbr_result[gbr]["cnt"] * 100 for t in timeslots]
-    penalty = [gbr_result[gbr]['acheived'][t] / gbr_result[gbr]["cnt"] * 100 for t in timeslots]
-    ax.bar(index + i * bar_width, penalty, bar_width, label=f'GBR {gbr}')
+    #penalty = [gbr_result[gbr]['acheived'][t] / gbr_result[gbr]["cnt"] * 100 for t in timeslots]
+    ax.bar(index + i * bar_width, achieved, bar_width, label=f'GBR {gbr}')
+    print("gbr:", gbr, "achieved:", achieved)
 
 # Add labels and title
 ax.set_xlabel('Timeslots (s)')
