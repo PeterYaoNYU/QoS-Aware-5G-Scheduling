@@ -825,8 +825,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 #endif
       std::cerr << " actual_allocated_bits:" << transportBlockSize << std::endl;
 
-      std::cerr << "User(" << ue->GetUserID() << ") UpdateAllocatedBits:" << transportBlockSize;
-      std::cerr << " request:" << dataToTransmitInWindow[ue->GetUserID()] / remaining_window << std::endl;
+      std::cerr << "User(" << ue->GetUserID() << ") UpdateAllocatedBits:" << transportBlockSize << std::endl;
       ue->UpdateAllocatedBits(transportBlockSize); // unit: bits
       for (size_t rb = 0; rb < ue->GetListOfAllocatedRBs()->size(); rb++) {
         pdcchMsg->AddNewRecord(PdcchMapIdealControlMessage::DOWNLINK,
