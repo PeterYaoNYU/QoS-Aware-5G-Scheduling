@@ -9,7 +9,7 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR= "configs"#"less_ue"
 FTYPE=".pdf"
-n_users= 100#400 #225 #600 #450
+n_users= 10#400 #225 #600 #450
 n_slices = 1#20 #15 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
@@ -237,7 +237,8 @@ matplotlib.rcParams['ps.fonttype'] = 42
 #plot_fairness()
 # plot_together()
 #plot_sum_bandwidth()
-schemes_to_plot = ["/single_", "/nvs_", "/maxcell_"]
+#schemes_to_plot = ["/single_", "/nvs_", "/maxcell_"]
+schemes_to_plot = ["/ours_", "/greedy_edf_", "/maxcell_capped_"]
 for scheme_to_plot in schemes_to_plot:
     slice_cumu_rbs, slice_cumu_bytes, cumu_rbs, cumu_bytes = get_cumubytes( INPUT_DIR + scheme_to_plot + INTRA + "0.log", n_slices )   
     tick_positions = range(0, len(cumu_rbs), 15)
@@ -282,8 +283,8 @@ for scheme_to_plot in schemes_to_plot:
     plt.xticks(range(len(cumu_bytes)), [i+1 for i in range(len(cumu_bytes))])
     print(len(cumu_bytes))
     # plot a line: y = x
-    # target = [(i+1)*5 for i in range(len(cumu_bytes))]
-    # plt.plot(range(len(cumu_bytes)), target, color='red', linestyle='--')
+    target = [(i+1)*5 for i in range(len(cumu_bytes))]
+    plt.plot(range(len(cumu_bytes)), target, color='red', linestyle='--')
     print("perUE_throughput:", cumu_bytes)
     # plt.axhline(y=100000*8/1000/1000, color='r', linestyle='--') # 12500 * 8
     # plt.axhline(y=300000*8/1000/1000, color='r', linestyle='--') # 37500 * 8

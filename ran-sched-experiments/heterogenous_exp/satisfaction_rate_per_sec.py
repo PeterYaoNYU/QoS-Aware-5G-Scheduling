@@ -1,6 +1,6 @@
 import re
 
-log_file_path = './configs/single_1.log'
+log_file_path = './June28Test1/greedy_edf_0.log'
 
 # Function to read log data from a file
 def read_log_file(file_path):

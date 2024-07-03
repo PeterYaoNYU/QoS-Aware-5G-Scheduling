@@ -1,4 +1,6 @@
-/* project: RadioSaber; Mode: C++
+/* 
+ * By Jiajin
+ * project: RadioSaber; Mode: C++
  * Copyright (c) 2021, 2022, 2023, 2024 University of Illinois Urbana Champaign
  *
  * This file is part of RadioSaber, which is a project built upon LTE-Sim in 2022
@@ -11,19 +13,23 @@
  * RadioSaber is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for ore details.
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
+
+#ifndef DOWNLINKGREEDYEDFSCHEDULER_H_
+#define DOWNLINKGREEDYEDFSCHEDULER_H_
+
 #include <vector>
 #include <map>
-#include "packet-scheduler.h"
 #include <deque>
+#include "packet-scheduler.h"
 
-class OptMaxcellScheduler : public PacketScheduler {
+class DownlinkGreedyEDFScheduler : public PacketScheduler {
  private:
   // below use customizable scheduler params
   int num_slices_ = 1;
@@ -33,39 +39,31 @@ class OptMaxcellScheduler : public PacketScheduler {
   std::vector<int> slice_priority_;
   std::vector<double> slice_rbs_offset_;
 
-  // std::vector<double> pre_defined_gbr_;
-
-  // Peter: Keep a running score to measure how well each request is satisfied. 
-  std::vector<double> slice_score_;
-
-  // Peter: Store the result of the score to a file
-  void logScore();
+  std::vector<double> pre_defined_gbr_;
+  // Jiajin: initialize pre_defined_gbr as an array of 0 with size of 11. 11 is the number of UEs in the experiment
+  // Initialize as (5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55) * 125 = (625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250, 6875)
+  //std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
+  //std::vector<double> pre_defined_gbr_ = {20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20}; // Mbps
+  //std::vector<double> pre_defined_gbr_ = {625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250}; // 10 UEs
+  //std::vector<double> pre_defined_gbr_ = {1250, 2500, 3750, 5000, 6250, 7500, 8750, 10000}; //, 11250, 12500}; // 10 UEs
+  //(625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250) * 8 = (5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000)
 
   const double beta_ = 0.1;
-  int inter_sched_ = 0;
 
   // Charlie: the inter-slice scheduling metric (objective)
   // peter: a function pointer that points to the inter slice algorithm
-  double (*inter_metric_)(UserToSchedule*, int, int);
+  double (*inter_metric_)(UserToSchedule*, int);
 
-  // peter: count the weight of different slices
-  std::vector<double> inter_algo_weight_count_;
-
-  // peter: a flag indicating whether the inter-slice scheduling is in mix mode
-  int mix_mode = 0;
-  // peter: if cap is set to 1, stop allocating when enough has been allocated through maxcell
-  int cap = 0;
-
-  // std::vector<int> dataToTransmitInWindow; 
-  // const int WINDOW_SIZE = 1000;
-  // int remaining_window = 1;
-  // int num_windows_;
-  // std::vector<std::deque<double>> allocation_logs_;
-  
+  std::vector<int> dataToTransmitInWindow; //Jiajin 0617
+  // Peter: Sliding window to keep track of how many RBs have been allocated to each UE already
+  const int WINDOW_SIZE = 1000;
+  int remaining_window = 1;//Jiajin 0617
+  int num_windows_; 
+  std::vector<std::deque<double>> allocation_logs_;
 
  public:
-  OptMaxcellScheduler(std::string config_fname, int algo, int metric);
-  virtual ~OptMaxcellScheduler();
+  DownlinkGreedyEDFScheduler(std::string config_fname);
+  virtual ~DownlinkGreedyEDFScheduler();
 
   void SelectFlowsToSchedule();
 
@@ -77,22 +75,11 @@ class OptMaxcellScheduler : public PacketScheduler {
                                          double spectralEfficiency);
   void UpdateAverageTransmissionRate(void);
 
-  // peter: static method to get TB size from sinr values
-  int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int rbg_size);
-  // peter: for preliminary code, use this vector for GBR:
-  // std::vector<double> pre_defined_gbr_ = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}; // Mbps
-  // read the predefined gbr instead from the json file
-  std::vector<double> pre_defined_gbr_;
-  std::vector<int> pre_defined_gbr_bits_per_second = {};
-
-  // with the new version, we adopt an experiment where the sliding window is disjoint 
-  std::vector<int> dataToTransmitInWindow; //Jiajin 0617
-
-  // if disjoint sliding window
-  const int WINDOW_SIZE = 1000;
-  int remaining_window = 1;//Jiajin 0617
-
+  // Jiajin add
   std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate); // byDDL or byGBR: from min to max
   //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
   int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rb, int rbg_size);
+
 };
+
+#endif /* DOWNLINKHETEROGENOUSSCHEDULER_H_ */

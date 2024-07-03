@@ -57,18 +57,13 @@ struct SliceConfig {
   int nb_video;
   int nb_internetflow;
   int nb_backlogflow;
-  double nb_gbr;  // guaranteed bitrate (Kbps)
-  double nb_max_delay; // delay thrshold (ms)
-  int type; // TODO: should indicate application type
   std::vector<int> video_bitrate;  // the video bitrate of a single user
   std::vector<double> if_bitrate;  // the aggregate data rate of the slice
 
-  SliceConfig(int _nb_video, int _nb_internetflow, int _nb_backlogflow, double _nb_gbr, double _nb_max_delay)
+  SliceConfig(int _nb_video, int _nb_internetflow, int _nb_backlogflow)
       : nb_video(_nb_video),
         nb_internetflow(_nb_internetflow),
-        nb_backlogflow(_nb_backlogflow), 
-        nb_gbr(_nb_gbr), 
-        nb_max_delay(_nb_max_delay) {}
+        nb_backlogflow(_nb_backlogflow) {}
 };
 
 static void SingleCellWithInterference(double radius, int sched_type,
@@ -128,13 +123,13 @@ static void SingleCellWithInterference(double radius, int sched_type,
       downlink_scheduler_type = ENodeB::DLSScheduler_MAXCELL_MLWDF;
       std::cout << "Scheduler Greedy (RadioSaber with m-lwdf)" << std::endl;
       break;
-    case 99:  // Jiajin: Heterogenous scheduler
-      downlink_scheduler_type = ENodeB::DLSScheduler_HETEROGENOUS;
-      std::cout << "Scheduler Heterogenous" << std::endl;
+    case 93: // Peter: Total random selection as a baseline of variance
+      downlink_scheduler_type = ENodeB::DLSScheduler_RANDOM;
+      std::cout << "Scheduler Random" << std::endl;
       break;
-    case 100: //Peter: maxcell with a cap
-      downlink_scheduler_type = ENodeB::DLSScheduler_MAXCELL_WITH_GBR_CAP;
-      std::cout << "Scheduler MaxCell with GBR Cap" << std::endl;
+    case 94: // Peter: A mix of PF and MLWDF and MT, the weight is determined by the slice's purchase
+      downlink_scheduler_type = ENodeB::DLSScheduler_MIX;
+      std::cout << "Scheduler Mix" << std::endl;
       break;
     case 95:
       downlink_scheduler_type = ENodeB::DLScheduler_MAXCELL_CAP;
@@ -147,6 +142,10 @@ static void SingleCellWithInterference(double radius, int sched_type,
     case 101:
       downlink_scheduler_type = ENodeB::DLScheduler_MAXFLOW;
       std::cerr << "Scheduler Maxflow" << std::endl;
+      break;
+    case 102:
+      downlink_scheduler_type = ENodeB::DLScheduler_GREEDYEDF;
+      std::cerr << "Scheduler Greedy EDF" << std::endl;
       break;
     default:
       string error_log = "Undefined Scheduler: " + std::to_string(sched_type);
@@ -266,9 +265,7 @@ static void SingleCellWithInterference(double radius, int sched_type,
     for (int j = 0; j < n_slices; j++) {
       SliceConfig config(slice_schemes[i]["video_app"].asInt(),
                          slice_schemes[i]["internet_flow"].asInt(),
-                         slice_schemes[i]["backlog_flow"].asInt(),
-                         slice_schemes[i]["gbr"].asDouble(),
-                         slice_schemes[i]["max_delay"].asDouble());
+                         slice_schemes[i]["backlog_flow"].asInt());
       const Json::Value& video_bitrate = slice_schemes[i]["video_bitrate"];
       for (int k = 0; k < video_bitrate.size(); k++) {
         config.video_bitrate.push_back(video_bitrate[k].asInt());
@@ -427,8 +424,6 @@ static void SingleCellWithInterference(double radius, int sched_type,
 
       // create qos parameters
       QoSParameters* qosParameters = new QoSParameters();
-      // Jiajin add: TODO: should add one more application type that requires guaranteed bitrate
-      qosParameters->SetGBR(config.nb_gbr);
       be_app->SetQoSParameters(qosParameters);
 
       //create classifier parameters

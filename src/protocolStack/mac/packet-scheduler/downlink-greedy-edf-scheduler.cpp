@@ -19,7 +19,7 @@
  * Author: Yongzhou Chen <yongzhouc@outlook.com>
  */
 
-#include "downlink-heterogenous-scheduler.h"
+#include "downlink-greedy-edf-scheduler.h"
 #include <jsoncpp/json/json.h>
 #include <algorithm>
 #include <cassert>
@@ -56,9 +56,9 @@ using std::map;
 using coord_t = std::pair<int, int>;
 using coord_cqi_t = std::pair<coord_t, double>;
 
-DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
+DownlinkGreedyEDFScheduler::DownlinkGreedyEDFScheduler(
   std::string config_fname) {
-  std::cerr << "DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler" << std::endl;
+  std::cerr << "DownlinkGreedyEDFScheduler::DownlinkGreedyEDFScheduler" << std::endl;
   std::ifstream ifs(config_fname);
   if (!ifs.is_open()) {
     throw std::runtime_error("Fail to open configuration file.");
@@ -123,13 +123,13 @@ DownlinkHeterogenousScheduler::DownlinkHeterogenousScheduler(
   CreateUsersToSchedule();
 }
 
-DownlinkHeterogenousScheduler::~DownlinkHeterogenousScheduler() {
+DownlinkGreedyEDFScheduler::~DownlinkGreedyEDFScheduler() {
   Destroy();
 }
 
 // [Peter]update the CQI, call the actual scheduling function
 // [Peter]entrance of scheduling
-void DownlinkHeterogenousScheduler::DoSchedule(void) {
+void DownlinkGreedyEDFScheduler::DoSchedule(void) {
 #ifdef SCHEDULER_DEBUG
   std::cout << "\nStart DL packet scheduler for node "
             << GetMacEntity()->GetDevice()->GetIDNetworkNode() << std::endl;
@@ -151,7 +151,7 @@ void DownlinkHeterogenousScheduler::DoSchedule(void) {
 }
 
 // peter: actually send out the packets.
-void DownlinkHeterogenousScheduler::DoStopSchedule(void) {
+void DownlinkGreedyEDFScheduler::DoStopSchedule(void) {
   PacketBurst* pb = new PacketBurst();
   UsersToSchedule* uesToSchedule = GetUsersToSchedule();
   int total_rbgs = 0;
@@ -214,7 +214,7 @@ void DownlinkHeterogenousScheduler::DoStopSchedule(void) {
 }
 
 
-void DownlinkHeterogenousScheduler::UpdateAverageTransmissionRate(void) {
+void DownlinkGreedyEDFScheduler::UpdateAverageTransmissionRate(void) {
   // we should update the user average transmission rate instead of the flow transmission rate
   RrcEntity* rrc =
       GetMacEntity()->GetDevice()->GetProtocolStack()->GetRrcEntity();
@@ -230,7 +230,7 @@ void DownlinkHeterogenousScheduler::UpdateAverageTransmissionRate(void) {
 // [Peter] For each radio bearer in each UE, get the respective spectral efficiency
 // [Peter] update the slice's priority to that of the highest UE's priority in the slice
 // peter: clear all previous users, then readd new users to the scheduler
-void DownlinkHeterogenousScheduler::SelectFlowsToSchedule() {
+void DownlinkGreedyEDFScheduler::SelectFlowsToSchedule() {
 #ifdef SCHEDULER_DEBUG
   std::cout << "\t Select Flows to schedule" << std::endl;
 #endif
@@ -292,7 +292,7 @@ void DownlinkHeterogenousScheduler::SelectFlowsToSchedule() {
   }
 }
 
-int DownlinkHeterogenousScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rbg, int rbg_size) { 
+int DownlinkGreedyEDFScheduler::EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rbg, int rbg_size) { 
   if (num_rbg == 0) {
     return 0;
   }
@@ -311,7 +311,7 @@ bool sortByValDesc(const std::pair<int, int> &a, const std::pair<int, int> &b) {
     return a.second > b.second; // sort by decreasing order of value
 }
 
-void DownlinkHeterogenousScheduler::RBsAllocation() {
+void DownlinkGreedyEDFScheduler::RBsAllocation() {
 
   // std::cerr << GetTimeStamp() << " ====== RBsAllocation ====== " << std::endl;
 
@@ -402,12 +402,12 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
     }
   }
 
-  std::cerr << "slice_id, target_rbs, quota_rbgs: ";
-  for (int i = 0; i < num_slices_; ++i) {
-    std::cerr << "(" << i << ", " << slice_target_rbs[i] << ", "
-              << slice_quota_rbgs[i] << ") ";
-  }
-  std::cerr << std::endl;
+  // std::cerr << "slice_id, target_rbs, quota_rbgs: ";
+  // for (int i = 0; i < num_slices_; ++i) {
+  //   std::cerr << "(" << i << ", " << slice_target_rbs[i] << ", "
+  //             << slice_quota_rbgs[i] << ") ";
+  // }
+  // std::cerr << std::endl;
 
   AMCModule* amc = GetMacEntity()->GetAmcModule();
   
@@ -559,30 +559,57 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
       std::cerr << "Warning, user_id: " << user_id << " cannot be satisfied, required RBGs: " << num_RBG_needed << std::endl;
       continue;
     }
-    // find the available RBs
-    int allocated_RBG_num = 0;
-    // iterate sorted rbgid_impact_pair, find the suitable RBs for the UE
-    for (int j = 0; j < nb_rbgs; j++) {
-      int rbg_id = rbgid_impact_pair[j].first;
-      if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
-        //std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
-        int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
-        for (int j = l; j < r; ++j) {
-          users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
-          //std::cerr << j << " ";
-        }
-        users->at(user_id)->GetListOfAllocatedRBGs()->push_back(rbg_id);
-        //std::cerr << "]" << std::endl;
-        rbg_availability[rbg_id] = 0;
-        allocated_RBG_num += 1;
-        if (allocated_RBG_num == num_RBG_needed) 
-        {
-          satisfied_users.push_back(make_pair(user_id, allocated_RBG_num));
-          ue_satisfied[user_id] = 1;
-          break;
-        }
+
+    // Greedy allocation by decreasing CQI
+    int available_TBSize = 0;
+    int allocated_RB_num = 0;
+    vector<double> estimatedSinrValues = {};
+    int request = dataToTransmitInWindow[users->at(user_id)->GetUserID()] / remaining_window; // bits per TTI 
+    for(int j = 0; j < users->at(user_id)->GetSortedRBGIds().size(); j++){
+      int rbg_id = users->at(user_id)->GetSortedRBGIds().at(j);
+      if (rbg_availability[rbg_id] == 0) {
+        continue;
+      }
+      double sinr = amc->GetSinrFromCQI(users->at(user_id)->GetCqiFeedbacks().at(rbg_id * rbg_size)); 
+      estimatedSinrValues.push_back(sinr);
+      available_TBSize = EstimateTBSizeByEffSinr(estimatedSinrValues, j+1, rbg_size);
+      int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
+      for (int m = l; m < r; ++m) {
+        users->at(user_id)->GetListOfAllocatedRBs()->push_back(m);
+      }
+      users->at(user_id)->GetListOfAllocatedRBGs()->push_back(rbg_id);
+      allocated_RB_num += 1;
+      rbg_availability[rbg_id] = 0;
+      if (available_TBSize >= request) {
+        satisfied_users.push_back(make_pair(user_id, allocated_RB_num));
+        ue_satisfied[user_id] = 1;
+        break;
       }
     }
+    // // find the available RBs
+    // int allocated_RBG_num = 0;
+    // // iterate sorted rbgid_impact_pair, find the suitable RBs for the UE
+    // for (int j = 0; j < nb_rbgs; j++) {
+    //   int rbg_id = rbgid_impact_pair[j].first;
+    //   if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
+    //     //std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
+    //     int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
+    //     for (int j = l; j < r; ++j) { // JIAJIN NOTE: MAYBE A BUG HERE: J is duplicated with the previous for(j:)
+    //       users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
+    //       //std::cerr << j << " ";
+    //     }
+    //     users->at(user_id)->GetListOfAllocatedRBGs()->push_back(rbg_id);
+    //     //std::cerr << "]" << std::endl;
+    //     rbg_availability[rbg_id] = 0;
+    //     allocated_RBG_num += 1;
+    //     if (allocated_RBG_num == num_RBG_needed) 
+    //     {
+    //       satisfied_users.push_back(make_pair(user_id, allocated_RBG_num));
+    //       ue_satisfied[user_id] = 1;
+    //       break;
+    //     }
+    //   }
+    // }
   }
   // print those unallocated RB
   // std::cerr << "==== unallocated RBs ====" << std::endl;
@@ -825,7 +852,8 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 #endif
       std::cerr << " actual_allocated_bits:" << transportBlockSize << std::endl;
 
-      std::cerr << "User(" << ue->GetUserID() << ") UpdateAllocatedBits:" << transportBlockSize << std::endl;
+      std::cerr << "User(" << ue->GetUserID() << ") UpdateAllocatedBits:" << transportBlockSize;
+      std::cerr << " request:" << dataToTransmitInWindow[ue->GetUserID()] / remaining_window << std::endl;
       ue->UpdateAllocatedBits(transportBlockSize); // unit: bits
       for (size_t rb = 0; rb < ue->GetListOfAllocatedRBs()->size(); rb++) {
         pdcchMsg->AddNewRecord(PdcchMapIdealControlMessage::DOWNLINK,
@@ -844,7 +872,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 // Jiajin add
 // input: delay sensitive slices
 // return: rb allocation metric
-// vector<int> DownlinkHeterogenousScheduler::RBsAllocation_EDF(int max_num_rbs, UsersToSchedule* users, vector<int> rb_allocation)
+// vector<int> DownlinkGreedyEDFScheduler::RBsAllocation_EDF(int max_num_rbs, UsersToSchedule* users, vector<int> rb_allocation)
 // {
   
 //   return ;
@@ -852,7 +880,7 @@ void DownlinkHeterogenousScheduler::RBsAllocation() {
 
 
 
-vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate) {
+vector<int> DownlinkGreedyEDFScheduler::GetSortedUEsIDbyQoS(map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate) {
 
     // Peter: calculate the sum of the allocation logs
     vector<double> allocate_sum_hist;
@@ -913,7 +941,7 @@ vector<int> DownlinkHeterogenousScheduler::GetSortedUEsIDbyQoS(map<int, double> 
 }
 
 // Jiajin NOTE: actually unused
-double DownlinkHeterogenousScheduler::ComputeSchedulingMetric(
+double DownlinkGreedyEDFScheduler::ComputeSchedulingMetric(
     UserToSchedule* user, double spectralEfficiency) {
   double metric = 0;
   double averageRate = 1;

@@ -19,17 +19,12 @@ CPP_SRCS += \
 ../src/protocolStack/mac/packet-scheduler/roundrobin-uplink-packet-scheduler.cpp \
 ../src/protocolStack/mac/packet-scheduler/uplink-packet-scheduler.cpp \
 ../src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.cpp \
-<<<<<<< HEAD
-../src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.cpp \
-../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.cpp \
-../src/protocolStack/mac/packet-scheduler/maxcell-with-gbr-cap.cpp
-=======
 ../src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.cpp\
-../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.cpp \
-../src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.cpp
+../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.cpp\
+../src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.cpp\
+../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.cpp
 # ../src/protocolStack/mac/packet-scheduler/maxflow.cpp \
 # ../src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.cpp
->>>>>>> 09ee75b16f3d68b284341e7ccf7ebfabae366b96
 
 OBJS += \
 ./src/protocolStack/mac/packet-scheduler/delay-edd-rule-downlink-packet-scheduler.o \
@@ -47,18 +42,12 @@ OBJS += \
 ./src/protocolStack/mac/packet-scheduler/roundrobin-uplink-packet-scheduler.o \
 ./src/protocolStack/mac/packet-scheduler/uplink-packet-scheduler.o \
 ./src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.o \
-<<<<<<< HEAD
-./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.o \
-./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.o \
-../src/protocolStack/mac/packet-scheduler/maxcell-with-gbr-cap.o
-
-=======
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.o\
-./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.o \
-./src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.o
+./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.o\
+../src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.o\
+../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.o
 # ./src/protocolStack/mac/packet-scheduler/maxflow.o \
 # ../src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.o
->>>>>>> 09ee75b16f3d68b284341e7ccf7ebfabae366b96
 
 CPP_DEPS += \
 ./src/protocolStack/mac/packet-scheduler/delay-edd-rule-downlink-packet-scheduler.d \
@@ -77,14 +66,11 @@ CPP_DEPS += \
 ./src/protocolStack/mac/packet-scheduler/uplink-packet-scheduler.d \
 ./src/protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.d \
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.d \
-./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.d \
-<<<<<<< HEAD
-../src/protocolStack/mac/packet-scheduler/maxcell-with-gbr-cap.d
-=======
-./src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.d \
+./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.d\
+../src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.d\
+../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.d
 # ./src/protocolStack/mac/packet-scheduler/maxflow.d \
 # ./src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.d
->>>>>>> 09ee75b16f3d68b284341e7ccf7ebfabae366b96
 
 
 # Each subdirectory must supply rules for building sources it contributes

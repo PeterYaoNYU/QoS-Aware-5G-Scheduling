@@ -7,12 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-folder = "configs"
-filename = "nvs_0.log"
+folder = "June28Test1"
+#filename = "nvs_0.log"
 #filename = "maxcell_0.log"
-#filename = "single_0.log"
-scheme = "nvs"
-#scheme = "Ours"
+#filename = "maxcell_capped_0.log"
+filename = "greedy_edf_0.log"
+#filename = "ours_0.log"
+#scheme = "radiosaber"
+scheme = filename.split(".")[0][:-2]
 n_users = 100
 # 1s = 1000ms
 period = 1000 # throughput measurement window size: number of TTIs
@@ -20,12 +22,6 @@ period = 1000 # throughput measurement window size: number of TTIs
 begin_ts = 100
 end_ts = 10000 + begin_ts # end time of the measurement
 print("end_ts:", end_ts)
-flag  = {}
-for i in range(n_users):
-    ue_flag = {}
-    for j in range(begin_ts, end_ts+1):
-        ue_flag[j] = 0
-    flag[i] = ue_flag
 
 # get the per-second cumulative sent bytes
 def get_throughput(fname):
@@ -37,6 +33,18 @@ def get_throughput(fname):
     cumu_rbs = {} # {"ue": {"tti": cumulative rbs}}
     per_ue_thr = {} # {"ue": {"tti": per-UE throughput}}
 
+    flag  = {}
+    for i in range(n_users):
+        ue_flag = {}
+        for j in range(begin_ts, end_ts+1):
+            ue_flag[j] = 0
+        flag[i] = ue_flag
+        cumu_bytes[i] = {begin_ts-1: 0}
+        cumu_rbs[i] = {begin_ts-1: 0}
+        per_ue_thr[i] = {}
+
+        
+    last_tti = begin_ts - 1
     with open(fname, "r") as fin:
         for line in fin:
             words = line.split(" ")
@@ -51,16 +59,19 @@ def get_throughput(fname):
             tti = int(words[0])
             if tti > end_ts:
                 break
-            if tti > begin_ts:
+            if tti >= begin_ts:
                 flow = int(words[2])
-                if flow not in cumu_bytes:
-                    cumu_bytes[flow] = {}
-                    cumu_rbs[flow] = {}
-                    per_ue_thr[flow] = {}
                 cumu_rbs[flow][tti] = int( words[6] )
                 cumu_bytes[flow][tti] = int( words[4] )
                 flag[flow][tti] = 1
 
+                while last_tti + 1 < tti:
+                    for flow_i in range(n_users):
+                        if flag[flow_i][last_tti + 1] == 0:
+                            cumu_bytes[flow_i][last_tti + 1] = cumu_bytes[flow_i][last_tti]
+                            cumu_rbs[flow_i][last_tti + 1] = cumu_rbs[flow_i][last_tti]
+                            flag[flow_i][last_tti + 1] = 1
+                    last_tti += 1
         
             for flow_i in range(n_users):
                 if flag[flow_i][tti] == 0:
@@ -74,17 +85,16 @@ def get_throughput(fname):
                         cumu_rbs[flow_i][tti] = cumu_rbs[flow_i][tti - 1]
                         flag[flow_i][tti] = 1
 
+            last_tti = tti
+
     
     for tti in ttis: # no begin_ts
         if tti == begin_ts:
             continue
         print("tti:", tti)
         for flow in cumu_bytes:
-            # if tti == 3100:
-            #     print("  flow:", flow)
-            #     print("  cumu_bytes[flow][tti]:", cumu_bytes[flow])
-            per_ue_thr[flow][tti] = (cumu_bytes[flow][tti] - cumu_bytes[flow][tti - period]) * 8 / 1000 / 1000 # Mbps
-
+            per_ue_thr[flow][tti] = (cumu_bytes[flow][tti-1] - cumu_bytes[flow][tti - period - 1]) * 8 / 1000 / 1000 # Mbps
+            
     return cumu_rbs, cumu_bytes, per_ue_thr, ttis
 
 # thoughput per ue
@@ -121,28 +131,14 @@ for i in range(n_users):
         if tti not in gbr_result[gbr[i]]["acheived"]:
             gbr_result[gbr[i]]["acheived"][tti] = 0
             gbr_result[gbr[i]]["penalty"] = 0
-        if tti_thr_pair[tti] >= gbr[i] *0.99:
+        if tti_thr_pair[tti] >= gbr[i]:
             gbr_result[gbr[i]]["acheived"][tti] += 1
         else:
             print("i", i, "tti:", tti, "tti_thr_pair[tti]:", tti_thr_pair[tti], "gbr[i]:", gbr[i])
             #print("per_ue_thr[ue]:", per_ue_thr[i])
         gbr_result[gbr[i]]["penalty"] += abs(tti_thr_pair[tti] - gbr[i]) / gbr[i]
 
-    # gbr_result[gbr[i]]["diff"] += abs(per_ue_thr[i][end_ts] - grb[i])
-    
-    # diff.append(per_ue_thr[i][end_ts] - grb[i])
-    # penalty.append(abs(per_ue_thr[i][end_ts] - grb[i]) / grb[i])
-    # if per_ue_thr[i][end_ts] >= grb[i]:
-    #     acheived.append(1)
-    # else:
-    #     acheived.append(0)
-
-# print("gbr_result:", gbr_result)
 x = [i+1 for i in range(len(gbr_result[gbr[i]]["acheived"].keys()))]
-# print(x)
-# y = []
-# for i in gbr_result[gbr[i]]["acheived"].keys()
-#     y.append(gbr_result[gbr[i]]["acheived"][i])
 
 # plot
 # Extract x values (timeslots) and y values (achieved values for each GBR)
@@ -155,15 +151,19 @@ index = np.arange(len(timeslots))
 
 fig, ax = plt.subplots()
 
+total_achieved = 0
 for i, gbr in enumerate(gbr_values):
     achieved = [gbr_result[gbr]['acheived'][t] / gbr_result[gbr]["cnt"] * 100 for t in timeslots]
     #penalty = [gbr_result[gbr]['acheived'][t] / gbr_result[gbr]["cnt"] * 100 for t in timeslots]
     ax.bar(index + i * bar_width, achieved, bar_width, label=f'GBR {gbr}')
+    total_achieved += sum([gbr_result[gbr]['acheived'][t] for t in timeslots])
     print("gbr:", gbr, "achieved:", achieved)
+
+print(scheme , "total_achieved:", total_achieved, " ", total_achieved / (len(timeslots) * n_users) * 100, "%")
 
 # Add labels and title
 ax.set_xlabel('Timeslots (s)')
-ax.set_ylabel('penalty (%)')
+ax.set_ylabel('Satisfication Rate (%)')
 ax.set_title(scheme + ' - Achieved Throughput per GBR across Timeslots')
 ax.set_xticks(index + bar_width * 1.5)
 ax.set_xticklabels(x)
@@ -172,7 +172,4 @@ ax.legend()
 # Show the plot
 plt.show()
 # save
-plt.savefig("tets_per_ue_penalty_rate-" + scheme + ".png")
-
-print("saved")
-
+plt.savefig("tets_per_ue_satisfication_rate-" + scheme + ".png")

@@ -28,9 +28,6 @@
 #include "../protocolStack/mac/packet-scheduler/dl-pf-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-nvs-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-transport-scheduler.h"
-// #include "../protocolStack/mac/packet-scheduler/downlink-test.h"
-#include "../protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.h"
-#include "../protocolStack/mac/packet-scheduler/maxcell-with-gbr-cap.h"
 #include "../protocolStack/mac/packet-scheduler/enhanced-uplink-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/exp-rule-downlink-packet-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/log-rule-downlink-packet-scheduler.h"
@@ -40,6 +37,7 @@
 #include "../protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.h"
 #include "../protocolStack/packet/packet-burst.h"
 #include "Gateway.h"
 #include "NetworkNode.h"
@@ -341,8 +339,8 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
       mac->SetDownlinkPacketScheduler(scheduler);
       break;
 
-    case ENodeB::DLSScheduler_HETEROGENOUS: // Heterogenous
-      scheduler = new DownlinkHeterogenousScheduler(config_fname);
+    case ENodeB::DLSScheduler_RANDOM: // Peter: Baseline of throughput variance for PF
+      scheduler = new DownlinkTransportScheduler(config_fname, 5, 0);
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
       break;
@@ -364,7 +362,14 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
       scheduler = new OptMaxcellScheduler(config_fname, 6, 5);
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
-      break;     
+      break; 
+
+    // Jiajin: Greedy EDF
+    case ENodeB::DLScheduler_GREEDYEDF:
+      scheduler = new DownlinkGreedyEDFScheduler(config_fname);
+      scheduler->SetMacEntity(mac);
+      mac->SetDownlinkPacketScheduler(scheduler);
+      break;    
 
     // peter: add the Maxflow implementation for a theiretical upperbound.
     // case ENodeB::DLScheduler_MAXFLOW:

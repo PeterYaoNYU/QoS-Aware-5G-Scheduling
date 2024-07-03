@@ -9,8 +9,8 @@ TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
 INPUT_DIR= "configs" #"less_ue"
 FTYPE=".pdf"
-n_users= 100 
-n_slices = 1
+n_users= 100 #400 #225 #600 #450
+n_slices = 1 #20 #15 #20 #20
 COLORS=["brown", "dimgrey", "cornflowerblue"]
 
 def get_cdf(data, ratio=0):
@@ -26,7 +26,7 @@ def get_cdf(data, ratio=0):
 # get the per-second cumulative sent bytes
 def get_cumubytes(fname, n_slices):
     begin_ts = 0
-    end_ts = 6000
+    end_ts = 10000
     cumu_bytes = [0 for i in range(n_users)]
     cumu_rbs = [0 for i in range(n_users)]
     flow_to_slice = [-1 for i in range(n_users)]
@@ -69,23 +69,23 @@ def get_cumubytes(fname, n_slices):
 def get_throughput_perslice(dname, n_slices):
     ratio = 8 / (1000 * 1000)
     avg_throughput = {}
-    avg_throughput['capped'] = [0 for i in range(n_slices)]
+    avg_throughput['nvs'] = [0 for i in range(n_slices)]
     avg_throughput['maxcell'] = [0 for i in range(n_slices)]
     avg_throughput['single'] = [0 for i in range(n_slices)]
     avg_rbs = {}
-    avg_rbs['capped'] = [ 0 for i in range(n_slices) ]
+    avg_rbs['nvs'] = [ 0 for i in range(n_slices) ]
     avg_rbs['maxcell'] = [ 0 for i in range(n_slices) ]
     avg_rbs['single'] = [0 for i in range(n_slices) ]
 
     for i in range(0, 1):
-        nvs_rbs, nvs_bytes = get_cumubytes( dname + "/maxcell_capped_" + INTRA + str(i) + ".log", n_slices )
+        nvs_rbs, nvs_bytes = get_cumubytes( dname + "/nvs_" + INTRA + str(i) + ".log", n_slices )
         maxcell_rbs, maxcell_bytes = get_cumubytes( dname + "/maxcell_" + INTRA + str(i) + ".log", n_slices )
         single_rbs, single_bytes = get_cumubytes( dname + "/single_" + INTRA + str(i) + ".log", n_slices )
         for j in range(n_slices):
-            avg_throughput['capped'][j] += (nvs_bytes[j] * ratio)
+            avg_throughput['nvs'][j] += (nvs_bytes[j] * ratio)
             avg_throughput['maxcell'][j] += (maxcell_bytes[j] * ratio)
             avg_throughput['single'][j] += (single_bytes[j] * ratio)
-            avg_rbs['capped'][j] += nvs_rbs[j]
+            avg_rbs['nvs'][j] += nvs_rbs[j]
             avg_rbs['maxcell'][j] += maxcell_rbs[j]
             avg_rbs['single'][j] += single_rbs[j]
 
@@ -98,15 +98,15 @@ def get_throughput_perslice(dname, n_slices):
 def get_throughput_total(dname, n_slices):
     ratio = 8 / (1000 * 1000)
     avg_throughput = {}
-    avg_throughput['capped'] = []
+    avg_throughput['nvs'] = []
     avg_throughput['maxcell'] = []
     avg_throughput['single'] = []
 
     for i in range(0, TIMES):
-        _, nvs_bytes = get_cumubytes( dname + "/maxcell_capped_" + INTRA + str(i) + ".log", n_slices )
+        _, nvs_bytes = get_cumubytes( dname + "/nvs_" + INTRA + str(i) + ".log", n_slices )
         _, maxcell_bytes = get_cumubytes( dname + "/maxcell_" + INTRA + str(i) + ".log", n_slices )
         _, single_bytes = get_cumubytes( dname + "/single_" + INTRA + str(i) + ".log", n_slices )
-        avg_throughput['capped'].append( sum(nvs_bytes) * ratio )
+        avg_throughput['nvs'].append( sum(nvs_bytes) * ratio )
         avg_throughput['maxcell'].append( sum(maxcell_bytes) * ratio )
         avg_throughput['single'].append( sum(single_bytes) * ratio )
 
@@ -120,7 +120,7 @@ def plot_fairness():
     fig, ax = plt.subplots(figsize=(10, 6))
     x_array = np.arange(1, n_slices+1 )
     ax.plot( x_array, avg_throughput['maxcell'], 'bX--', label="RadioSaber" )
-    ax.plot( x_array, avg_throughput['capped'], 'ro--', label="capped" )
+    ax.plot( x_array, avg_throughput['nvs'], 'ro--', label="NVS" )
     ax.plot( x_array, avg_throughput['single'], 'yD--', label="Ours" )
     ax.set_xlabel("Slice Id", fontsize=default_font + 4)
     ax.set_ylabel("Throughput(Mbps)", fontsize=default_font + 4)
@@ -133,7 +133,7 @@ def plot_fairness():
     fig.savefig("sameweight_tenant_bw" + FTYPE )
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot( x_array, avg_rbs['capped'], 'ro--', label="capped" )
+    ax.plot( x_array, avg_rbs['nvs'], 'ro--', label="NVS" )
     ax.plot( x_array, avg_rbs['maxcell'], 'bX--', label="RadioSaber" )
     ax.plot( x_array, avg_rbs['single'], 'yD--', label="Ours" )
     ax.set_xlabel("Slice Id", fontsize=default_font + 4)
@@ -154,8 +154,8 @@ def plot_sum_bandwidth():
     _, avg_throughput = get_throughput_total( INPUT_DIR, n_slices )
     fig, ax = plt.subplots(figsize=(6,6))
     x_array = np.arange( 0, 2, 1 )
-    bw_array = [ np.mean(avg_throughput['capped']), np.mean(avg_throughput['maxcell']) ]
-    bwerr_array = [ np.std(avg_throughput['capped']), np.std(avg_throughput['maxcell']) ]
+    bw_array = [ np.mean(avg_throughput['nvs']), np.mean(avg_throughput['maxcell']) ]
+    bwerr_array = [ np.std(avg_throughput['nvs']), np.std(avg_throughput['maxcell']) ]
     scheme_array = ['NVS', 'RadioSaber']
 
     ax.grid( axis="y", alpha = 0.4 )
@@ -184,7 +184,7 @@ def plot_together():
     fig, ax = plt.subplots(ncols=3, figsize=(26, 7), gridspec_kw={"width_ratios": [2,2,1]})
     x_array = np.arange(1, n_slices+1 )
     ax[0].plot( x_array, avg_rbs['single'], 'o--', label="Ours", markersize=12, color=COLORS[0] )
-    ax[0].plot( x_array, avg_rbs['capped'], 'v--', label="capped", markersize=12, color=COLORS[1] )
+    ax[0].plot( x_array, avg_rbs['nvs'], 'v--', label="NVS", markersize=12, color=COLORS[1] )
     ax[0].plot( x_array, avg_rbs['maxcell'], '^--', label="RadioSaber", markersize=12, color=COLORS[2] )
     ax[0].set_xlabel("Slice Id", fontsize=default_font + 4)
     ax[0].set_ylabel("Resource blocks(per-second)", fontsize=default_font + 4)
@@ -197,7 +197,7 @@ def plot_together():
     ax[0].set_title("(a) per-slice RBs per second", y=-0.3, fontsize=default_font+5)
 
     ax[1].plot( x_array, avg_throughput['single'], 'o--', label="Ours", markersize=12, color=COLORS[0] )
-    ax[1].plot( x_array, avg_throughput['capped'], 'v--', label="capped", markersize=12, color=COLORS[1] )
+    ax[1].plot( x_array, avg_throughput['nvs'], 'v--', label="NVS", markersize=12, color=COLORS[1] )
     ax[1].plot( x_array, avg_throughput['maxcell'], '^--', label="RadioSaber", markersize=12, color=COLORS[2] )
     ax[1].set_xlabel("Slice Id", fontsize=default_font + 4)
     ax[1].set_ylabel("Throughput(Mbps)", fontsize=default_font + 4)
@@ -210,11 +210,11 @@ def plot_together():
 
     _, sum_throughput = get_throughput_total( INPUT_DIR, n_slices )
     x_array = np.arange( 0, 3, 1 )
-    bw_array = [ np.mean(sum_throughput['single']), np.mean(sum_throughput['capped']), np.mean(sum_throughput['maxcell'])]
-    bwerr_array = [ np.std(sum_throughput['single']), np.std(sum_throughput['capped']), np.std(sum_throughput['maxcell']) ]
+    bw_array = [ np.mean(sum_throughput['single']), np.mean(sum_throughput['nvs']), np.mean(sum_throughput['maxcell'])]
+    bwerr_array = [ np.std(sum_throughput['single']), np.std(sum_throughput['nvs']), np.std(sum_throughput['maxcell']) ]
     # rate_per_ue = [bw_array[0] / avg_rbs['single'], bw_array[1] / avg_rbs['nvs'], bw_array[2] / avg_rbs['maxcell']]
     # print("rate_per_ue[ours, nvs, maxcell]: ", rate_per_ue)
-    scheme_array = [ "Ours", "capped", "RadioSaber" ]
+    scheme_array = [ "Ours", "NVS", "RadioSaber" ]
     barlist = ax[2].bar( x_array, bw_array, width = 0.3 )
     for i in range(3):
         barlist[i].set_color(COLORS[i])
