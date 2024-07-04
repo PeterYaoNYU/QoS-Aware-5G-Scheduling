@@ -428,203 +428,57 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
     //std::cerr << " end" << std::endl;
   }
 
-
-  //std::cerr << "==== start initialization====" << std::endl;
-  std::vector<pair<int, int>> user_requestRB_pair; // user_id -> #rb_needed
-  std::vector<pair<int, int>> rbgid_impact_pair; // rbg_id -> impact: number of UEs that can be suitable for
-  std::map<int, vector<int>> rbg_impact_ues; // just for record
-  bool metrics[nb_rbgs][users->size()]; // 1: the RB suitable for the UE, 0: not suitable
-  for (int i = 0; i < nb_rbgs; i++) { // initialization
-    rbgid_impact_pair.push_back(make_pair(i, 0));
-    for (int j = 0; j < users->size(); j++) {
-      metrics[i][j] = 0;
-    }
-    rbg_impact_ues.insert(make_pair(i, vector<int>()));
-  }
-  //std::cerr << "==== initialized==== metrics[" << nb_rbgs << "][" << users->size() << "] ,rbgid_impact_pair[" << nb_rbgs << "]" << std::endl;
-  //std::cerr << "==== Estimate UE: # RB needed, RB lower bound, RB impact ====" << std::endl;
-  // Sort CQI for each UE & Calculate RB impact 
-  for (auto it = users->begin(); it != users->end(); it++) { // per UE, sort its CQIs
+  std::vector<pair<int, int>> user_request_pair; // user_id -> #rb_needed
+  for (auto it = users->begin(); it != users->end(); it++) {
     UserToSchedule* user = *it;
-    // print GetSortedRBGIds
-    // std::cerr << " Sorted RB: user_id: " << user->GetUserID() << ", sortedRBIds(" << user->GetSortedRBGIds().size() << "): ";
-    // for (int i = 0; i < user->GetSortedRBGIds().size(); i++) {
-    //   std::cerr << user->GetSortedRBGIds().at(i) << "(" << user->GetCqiFeedbacks().at(user->GetSortedRBGIds().at(i) * rbg_size) << ") ";
-    // }
-    // std::cerr << std::endl;
-    int num_RBG = 0;
-    int available_TBSize = 0;
-    vector<double> estimatedSinrValues = {};
-    // std::cerr << " remaining_window=" << remaining_window << " uid:" << user->GetUserID() << " data:" << dataToTransmitInWindow[user->GetUserID()] << std::endl;
-    // std::cerr << "  dataToTransmitInWindow[" << user->GetUserID() << "]=" << dataToTransmitInWindow[user->GetUserID()] << std::endl;
-    //int request = int(pre_defined_gbr_[user->GetUserID()]) * 1000 * 1000 / 1000; // Mbps -> bits per TTI // TODO: check the User ID
     int request = dataToTransmitInWindow[user->GetUserID()] / remaining_window; // bits per TTI 
-    // std::cerr << "== user_id: " << user->GetUserID() << ", request:" << request << " = toTx:" << dataToTransmitInWindow[user->GetUserID()] << " / remaining:" << remaining_window << std::endl;
-    // find the min number of RB required
-    while (available_TBSize < request) { 
-      //std::cerr << "  available_TBSize= " << available_TBSize << " < request=" << request << std::endl;
-      num_RBG += 1; 
-      if (num_RBG > nb_rbgs) {
-        break;
-      }
-      int rbg_id = user->GetSortedRBGIds().at(num_RBG-1);
-      double sinr = amc->GetSinrFromCQI(user->GetCqiFeedbacks().at(rbg_id * rbg_size)); 
-      //std::cerr << "  num_RBG=" << num_RBG << ", rbg_id=" << rbg_id << ", sinr=" << sinr << std::endl;
-      estimatedSinrValues.push_back(sinr);
-      //std::cerr << "  estimatedSinrValues: ";
-      //for (int i = 0; i < estimatedSinrValues.size(); i++) {
-        //std::cerr << estimatedSinrValues.at(i) << " ";
-      //}
-      available_TBSize = EstimateTBSizeByEffSinr(estimatedSinrValues, num_RBG, rbg_size);
-      //std::cerr << "  EstimateTBSizeByEffSinr() available_TBSize= " << available_TBSize << ", num_RBG=" << num_RBG << std::endl;
-    }
-    //user.SetRequiredRBs(num_RBG); // min number of RB required; num_RB=nb_rbgs+1 is possible, which means cannot be satisfied 
-    if (request > 0 && num_RBG <= nb_rbgs){
-      user_requestRB_pair.push_back(std::make_pair(user->GetUserID(), num_RBG));
-      //std::cerr << "  final: user->GetUserID()=" << user->GetUserID() << ", num_RBG=" << num_RBG << std::endl;
-      // find the lower bound of RB idx for available CQI
-      int lower_bound_idx = num_RBG; // lower bound index in sorted_RB
-      while (available_TBSize > request && lower_bound_idx < nb_rbgs) {
-        //std::cerr << "  lower_bound_idx = " << lower_bound_idx << " available_TBSize= " << available_TBSize << " > request=" << request << std::endl;
-        lower_bound_idx += 1;
-        estimatedSinrValues.pop_back();
-        // print estimatedSinrValues
-        //std::cerr << "  after pop_back, estimatedSinrValues: ";
-        //for (int i = 0; i < estimatedSinrValues.size(); i++) {
-          //std::cerr << estimatedSinrValues.at(i) << " ";
-        //}
-        int rbg_id = user->GetSortedRBGIds().at(lower_bound_idx-1);
-        double sinr = amc->GetSinrFromCQI(user->GetCqiFeedbacks().at(rbg_id * rbg_size)); 
-        //std::cerr << " add rbg_id:" << rbg_id << ", lower_bound_idx:" << lower_bound_idx << ", sinr:" << sinr << std::endl;
-        estimatedSinrValues.push_back(sinr);
-        // print estimatedSinrValues
-        //std::cerr << "  estimatedSinrValues: ";
-        //for (int i = 0; i < estimatedSinrValues.size(); i++) {
-          //std::cerr << estimatedSinrValues.at(i) << " ";
-        //}
-        available_TBSize = EstimateTBSizeByEffSinr(estimatedSinrValues, num_RBG, rbg_size);
-        //std::cerr << "  EstimateTBSizeByEffSinr() available_TBSize= " << available_TBSize << ", lower_bound_idx=" << lower_bound_idx << std::endl;
-      }
-      lower_bound_idx -= 1; // lower bound index in sorted_RB
-      user->SetLowerBoundSortedIdx(lower_bound_idx-1);
-      for (int i = 0; i < lower_bound_idx; i++) {
-        int rbg_id = user->GetSortedRBGIds().at(i);
-        rbgid_impact_pair[rbg_id].second += 1;
-        rbg_impact_ues[rbg_id].push_back(user->GetUserID());
-        //std::cerr << " rbgid_impact_pair: rbg_id=" << rbg_id << "(" << rbgid_impact_pair[rbg_id].first << "), impact=" << rbgid_impact_pair[rbg_id].second << " rbg_impact_ues.size()=" << rbg_impact_ues[rbg_id].size() << ": ";
-        //for (int j = 0; j < rbg_impact_ues[rbg_id].size(); j++) {
-          //std::cerr << rbg_impact_ues[rbg_id][j] << " ";
-        //}
-        //std::cerr << std::endl;
-        metrics[rbg_id][user->GetUserID()] = 1;
-        //std::cerr << " metrics: rbg_id=" << rbg_id << ", user_id=" << user->GetUserID() << ", metric=" << metrics[rbg_id][user->GetUserID()] << std::endl;
-      }
-    }
+    user_request_pair.push_back(make_pair(user->GetUserID(), request));
   }
-  
+  // ========== Sort UEs by Min request per TTI ==========
+  sort(user_request_pair.begin(), user_request_pair.end(), sortByVal); // min request first
+  std::vector<pair<int, int>> satisfied_users;
+  int ue_satisfied[users->size()]; // 1: satisfied, 0: not satisfied
+  for (int i = 0; i < users->size(); i++) {
+    ue_satisfied[i] = 0;
+  }
+  // Allocation here
   bool rbg_availability[nb_rbgs]; // 1: available, 0: unavailable
   for (int i = 0; i < nb_rbgs; i++) {
     rbg_availability[i] = 1;
   }
-  // ========== Sort UEs by Min #RB required ==========
-  sort(user_requestRB_pair.begin(), user_requestRB_pair.end(), sortByVal); // min #rb first
-  sort(rbgid_impact_pair.begin(), rbgid_impact_pair.end(), sortByVal); // min impact first
-
-  //print user_requestRB_pair
-  // std::cerr << "==== user_requestRB_pair ====" << std::endl;
-  // for (int i = 0; i < user_requestRB_pair.size(); i++) {
-  //   std::cerr << "user_id: " << user_requestRB_pair[i].first << ", num_RBG_needed: " << user_requestRB_pair[i].second << std::endl;
-  // }
-  // std::cerr << "==== rbgid_impact_pair ====" << std::endl;
-  // for (int i = 0; i < nb_rbgs; i++) {
-  //   int rb_idx = rbgid_impact_pair[i].first;
-  //   std::cerr << i << "th rbg_id: " << rbgid_impact_pair[i].first << ", impact: " << rbgid_impact_pair[i].second;
-  //   // print rbg_impact_ues
-  //   std::cerr << "  rbg_impact_ues(" << rbg_impact_ues[rb_idx].size() << "): ";
-  //   for (int j = 0; j < rbg_impact_ues[rb_idx].size(); j++) {
-  //     std::cerr << rbg_impact_ues[rb_idx][j] << " ";
-  //   }
-  //   std::cerr << std::endl;
-  // }
-
-  std::vector<pair<int, int>> satisfied_users;
-  int ue_satisfied[nb_rbgs]; // 1: satisfied, 0: not satisfied
-  for (int i = 0; i < nb_rbgs; i++) {
-    ue_satisfied[i] = 0;
-  }
-  for (int i = 0; i < user_requestRB_pair.size(); i++) {
-    int user_id = user_requestRB_pair[i].first;
-    int num_RBG_needed = user_requestRB_pair[i].second;
-    if (num_RBG_needed > nb_rbgs) {
-      std::cerr << "Warning, user_id: " << user_id << " cannot be satisfied, required RBGs: " << num_RBG_needed << std::endl;
-      continue;
-    }
-
+  for (int i = 0; i < user_request_pair.size(); i++) {
+    int user_id = user_request_pair[i].first;
+    int request = user_request_pair[i].second;
     // Greedy allocation by decreasing CQI
     int available_TBSize = 0;
-    int allocated_RB_num = 0;
     vector<double> estimatedSinrValues = {};
-    int request = dataToTransmitInWindow[users->at(user_id)->GetUserID()] / remaining_window; // bits per TTI 
+    vector<int> to_allocate_rbgs = {};
     for(int j = 0; j < users->at(user_id)->GetSortedRBGIds().size(); j++){
       int rbg_id = users->at(user_id)->GetSortedRBGIds().at(j);
       if (rbg_availability[rbg_id] == 0) {
         continue;
       }
+      to_allocate_rbgs.push_back(rbg_id);
       double sinr = amc->GetSinrFromCQI(users->at(user_id)->GetCqiFeedbacks().at(rbg_id * rbg_size)); 
       estimatedSinrValues.push_back(sinr);
-      available_TBSize = EstimateTBSizeByEffSinr(estimatedSinrValues, j+1, rbg_size);
+      available_TBSize = EstimateTBSizeByEffSinr(estimatedSinrValues, to_allocate_rbgs.size(), rbg_size);
+      if (available_TBSize >= request) {
+        satisfied_users.push_back(make_pair(user_id, to_allocate_rbgs.size()));
+        ue_satisfied[user_id] = 1;
+        break;
+      }
+      // maybe we can try that if the ue cannot be satisfied, and no rbs will be allocated to it
+    }
+    for (int j = 0; j < to_allocate_rbgs.size(); j++) {
+      int rbg_id = to_allocate_rbgs[j];
+      rbg_availability[rbg_id] = 0;
       int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
       for (int m = l; m < r; ++m) {
         users->at(user_id)->GetListOfAllocatedRBs()->push_back(m);
       }
       users->at(user_id)->GetListOfAllocatedRBGs()->push_back(rbg_id);
-      allocated_RB_num += 1;
-      rbg_availability[rbg_id] = 0;
-      if (available_TBSize >= request) {
-        satisfied_users.push_back(make_pair(user_id, allocated_RB_num));
-        ue_satisfied[user_id] = 1;
-        break;
-      }
     }
-    // // find the available RBs
-    // int allocated_RBG_num = 0;
-    // // iterate sorted rbgid_impact_pair, find the suitable RBs for the UE
-    // for (int j = 0; j < nb_rbgs; j++) {
-    //   int rbg_id = rbgid_impact_pair[j].first;
-    //   if (rbg_availability[rbg_id] == 1 && metrics[rbg_id][user_id] == 1) {
-    //     //std::cerr << "  Allcoation for user_id: " << user_id << ", rbg_id: " << rbg_id << " rb:[";
-    //     int l = rbg_id * rbg_size, r = (rbg_id + 1) * rbg_size;
-    //     for (int j = l; j < r; ++j) { // JIAJIN NOTE: MAYBE A BUG HERE: J is duplicated with the previous for(j:)
-    //       users->at(user_id)->GetListOfAllocatedRBs()->push_back(j);
-    //       //std::cerr << j << " ";
-    //     }
-    //     users->at(user_id)->GetListOfAllocatedRBGs()->push_back(rbg_id);
-    //     //std::cerr << "]" << std::endl;
-    //     rbg_availability[rbg_id] = 0;
-    //     allocated_RBG_num += 1;
-    //     if (allocated_RBG_num == num_RBG_needed) 
-    //     {
-    //       satisfied_users.push_back(make_pair(user_id, allocated_RBG_num));
-    //       ue_satisfied[user_id] = 1;
-    //       break;
-    //     }
-    //   }
-    // }
   }
-  // print those unallocated RB
-  // std::cerr << "==== unallocated RBs ====" << std::endl;
-  // for (int i = 0; i < nb_rbgs; i++) {
-  //   int rbg_id = rbgid_impact_pair[i].first;
-  //   if (rbg_availability[rbg_id] == 1) {
-  //     std::cerr << i << "th rbg_id: " << rbgid_impact_pair[i].first << " impact:" << rbgid_impact_pair[i].second;
-  //     // print rbg_impact_ues
-  //     std::cerr << "  rbg_impact_ues(" << rbg_impact_ues[rbg_id].size() << "): ";
-  //     for (int j = 0; j < rbg_impact_ues[rbg_id].size(); j++) {
-  //       std::cerr << rbg_impact_ues[rbg_id][j] << " ";
-  //     }
-  //     std::cerr << std::endl;
-  //   }
-  // }
 
 
   std::cerr << "+++++++++++++==== satisfied_users ====+++++++++++++====" << std::endl;
@@ -636,11 +490,6 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
   // ========= Allocation for those unallocated RBs: greedy, per UE =========
   for (int uid = 0; uid < users->size(); uid++) {
     if (ue_satisfied[uid] == 1) {
-      continue;
-    }
-    int num_RBG_needed = user_requestRB_pair[uid].second;
-    if (num_RBG_needed > nb_rbgs) {
-      std::cerr << "Warning, user_id: " << uid << " cannot be satisfied, required RBGs: " << num_RBG_needed << std::endl;
       continue;
     }
     //std::cerr << "user_id: " << uid << std::endl;

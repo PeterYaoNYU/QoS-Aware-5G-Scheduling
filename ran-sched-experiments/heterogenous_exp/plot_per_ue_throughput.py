@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-folder = "June28Test1"
+folder = "configs"
 #filename = "nvs_0.log"
 #filename = "maxcell_0.log"
 #filename = "maxcell_capped_0.log"

@@ -7,7 +7,7 @@ import numpy as np
 INTRA=""
 TIMES=2
 # INPUT_DIR="exp-backlogged-20slicesdiffw"
-INPUT_DIR= "configs"#"less_ue"
+INPUT_DIR= "June28Test4"#"less_ue"
 FTYPE=".pdf"
 n_users= 10#400 #225 #600 #450
 n_slices = 1#20 #15 #20 #20
