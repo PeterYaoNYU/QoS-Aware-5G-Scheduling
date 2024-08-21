@@ -89,7 +89,7 @@ class OptMaxcellScheduler : public PacketScheduler {
   std::vector<int> dataToTransmitInWindow; //Jiajin 0617
 
   // if disjoint sliding window
-  const int WINDOW_SIZE = 1000;
+  double WINDOW_SIZE;
   int remaining_window = 1;//Jiajin 0617
 
   std::vector<int> GetSortedUEsIDbyQoS(std::map<int, double> user_qos_map, std::vector<std::deque<double>>& allocation_logs, double threshold, int total_rbgs_to_allocate); // byDDL or byGBR: from min to max

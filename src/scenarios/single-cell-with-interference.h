@@ -147,6 +147,10 @@ static void SingleCellWithInterference(double radius, int sched_type,
       downlink_scheduler_type = ENodeB::DLScheduler_GREEDYEDF;
       std::cerr << "Scheduler Greedy EDF" << std::endl;
       break;
+    case 200:
+      downlink_scheduler_type = ENodeB::DLScheduler_HETEROGENOUS_MAXCELL;
+      std::cerr << "Scheduler Heterogenous-Maxcell" << std::endl;
+      break;
     default:
       string error_log = "Undefined Scheduler: " + std::to_string(sched_type);
       throw std::runtime_error(error_log);

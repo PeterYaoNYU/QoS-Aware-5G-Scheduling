@@ -55,8 +55,10 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   double (*inter_metric_)(UserToSchedule*, int);
 
   std::vector<int> dataToTransmitInWindow; //Jiajin 0617
+  std::vector<int> ue_request; //Jiajin 0715
   // Peter: Sliding window to keep track of how many RBs have been allocated to each UE already
-  const int WINDOW_SIZE = 1000;
+  double WINDOW_SIZE;
+  int ROUND;
   int remaining_window = 1;//Jiajin 0617
   int num_windows_; 
   std::vector<std::deque<double>> allocation_logs_;
@@ -80,7 +82,6 @@ class DownlinkHeterogenousScheduler : public PacketScheduler {
   //vector<int> RBsAllocation_EDF(int num_rbs, UsersToSchedule* user, vector<int> rb_allocation);
   int EstimateTBSizeByEffSinr(std::vector<double> estimatedSinrValues, int num_rb, int rbg_size);
 
-  void init_flow_spectraleff(double** flow_spectraleff, int nb_rbgs, UsersToSchedule* users, int count_ue_who_need_one, std::vector<std::pair<int, int>> maxcell_user_rbg_need, std::vector<std::pair<int, int>> maxcell_rbgid_impact, int rbg_size);
 };
 
 #endif /* DOWNLINKHETEROGENOUSSCHEDULER_H_ */

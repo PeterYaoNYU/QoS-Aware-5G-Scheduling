@@ -22,7 +22,8 @@ CPP_SRCS += \
 ../src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.cpp\
 ../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.cpp\
 ../src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.cpp\
-../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.cpp
+../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.cpp\
+../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler-maxcell.cpp
 # ../src/protocolStack/mac/packet-scheduler/maxflow.cpp \
 # ../src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.cpp
 
@@ -45,7 +46,8 @@ OBJS += \
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.o\
 ./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.o\
 ../src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.o\
-../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.o
+../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.o\
+../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler-maxcell.o
 # ./src/protocolStack/mac/packet-scheduler/maxflow.o \
 # ../src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.o
 
@@ -68,7 +70,8 @@ CPP_DEPS += \
 ./src/protocolStack/mac/packet-scheduler/downlink-transport-scheduler.d \
 ./src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler.d\
 ../src/protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.d\
-../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.d
+../src/protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.d\
+../src/protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler-maxcell.d
 # ./src/protocolStack/mac/packet-scheduler/maxflow.d \
 # ./src/protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.d
 

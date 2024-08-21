@@ -146,6 +146,10 @@ OptMaxcellScheduler::OptMaxcellScheduler(
   }
 
   // modification: read the gbr directly from the config file
+
+  const Json::Value& window = obj["window_size"];
+  WINDOW_SIZE = window[0].asDouble();
+
   const Json::Value& ues_gbr = obj["ues_gbr"];
   int num_gbr = ues_gbr.size();
   assert(num_gbr == num_ue);

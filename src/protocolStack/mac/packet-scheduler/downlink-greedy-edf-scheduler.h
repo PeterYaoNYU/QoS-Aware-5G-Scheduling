@@ -56,7 +56,7 @@ class DownlinkGreedyEDFScheduler : public PacketScheduler {
 
   std::vector<int> dataToTransmitInWindow; //Jiajin 0617
   // Peter: Sliding window to keep track of how many RBs have been allocated to each UE already
-  const int WINDOW_SIZE = 1000;
+  double WINDOW_SIZE;
   int remaining_window = 1;//Jiajin 0617
   int num_windows_; 
   std::vector<std::deque<double>> allocation_logs_;

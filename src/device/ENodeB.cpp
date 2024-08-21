@@ -38,6 +38,7 @@
 #include "../protocolStack/mac/packet-scheduler/downlink_maxflow_scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/opt_maxcell_scheduler.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-greedy-edf-scheduler.h"
+#include "../protocolStack/mac/packet-scheduler/downlink-heterogenous-scheduler-maxcell.h"
 #include "../protocolStack/packet/packet-burst.h"
 #include "Gateway.h"
 #include "NetworkNode.h"
@@ -353,6 +354,12 @@ void ENodeB::SetDLScheduler(ENodeB::DLSchedulerType type, string config_fname) {
     
     case ENodeB::DLScheduler_HETEROGENOUS:
       scheduler = new DownlinkHeterogenousScheduler(config_fname);
+      scheduler->SetMacEntity(mac);
+      mac->SetDownlinkPacketScheduler(scheduler);
+      break;
+
+    case ENodeB::DLScheduler_HETEROGENOUS_MAXCELL:
+      scheduler = new DownlinkHeterogenousSchedulerMaxcell(config_fname);
       scheduler->SetMacEntity(mac);
       mac->SetDownlinkPacketScheduler(scheduler);
       break;

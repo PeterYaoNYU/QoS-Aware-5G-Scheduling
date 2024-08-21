@@ -46,7 +46,7 @@
 #include "../../packet/packet-burst.h"
 #include "../mac-entity.h"
 #include "../../../flows/QoS/QoSParameters.h"
-
+#include "sort_utils.h"
 
 using std::unordered_map;
 using std::vector;
@@ -80,6 +80,9 @@ DownlinkGreedyEDFScheduler::DownlinkGreedyEDFScheduler(
   }
 
   // Jiajin
+  const Json::Value& window = obj["window_size"];
+  WINDOW_SIZE = window[0].asDouble();
+
   const Json::Value& ues_gbr = obj["ues_gbr"];
   int num_gbr = ues_gbr.size();
   assert(num_gbr == num_ue);
@@ -303,14 +306,6 @@ int DownlinkGreedyEDFScheduler::EstimateTBSizeByEffSinr(std::vector<double> esti
   return transportBlockSize;
 }
 
-bool sortByVal(const std::pair<int, int> &a, const std::pair<int, int> &b) {
-    return a.second < b.second; // sort by increasing order of value
-}
-
-bool sortByValDesc(const std::pair<int, int> &a, const std::pair<int, int> &b) {
-    return a.second > b.second; // sort by decreasing order of value
-}
-
 void DownlinkGreedyEDFScheduler::RBsAllocation() {
 
   // std::cerr << GetTimeStamp() << " ====== RBsAllocation ====== " << std::endl;
@@ -436,6 +431,11 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
   }
   // ========== Sort UEs by Min request per TTI ==========
   sort(user_request_pair.begin(), user_request_pair.end(), sortByVal); // min request first
+  // print the sorted user_request_pair
+  // std::cerr << "======== user_request_pair ========" << std::endl;
+  // for (int i = 0; i < user_request_pair.size(); i++) {
+  //   std::cerr << "user_id: " << user_request_pair[i].first << ", request:" << user_request_pair[i].second << std::endl;
+  // }
   std::vector<pair<int, int>> satisfied_users;
   int ue_satisfied[users->size()]; // 1: satisfied, 0: not satisfied
   for (int i = 0; i < users->size(); i++) {
@@ -449,6 +449,12 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
   for (int i = 0; i < user_request_pair.size(); i++) {
     int user_id = user_request_pair[i].first;
     int request = user_request_pair[i].second;
+    // std::cerr << "user_id: " << user_id << ", request:" << request << ", allocate:";
+    // do not allocate to those satisfied
+    if (request <= 0) {
+      ue_satisfied[user_id] = 1;
+      continue;
+    }
     // Greedy allocation by decreasing CQI
     int available_TBSize = 0;
     vector<double> estimatedSinrValues = {};
@@ -458,6 +464,7 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
       if (rbg_availability[rbg_id] == 0) {
         continue;
       }
+      // std::cerr << " " << rbg_id;
       to_allocate_rbgs.push_back(rbg_id);
       double sinr = amc->GetSinrFromCQI(users->at(user_id)->GetCqiFeedbacks().at(rbg_id * rbg_size)); 
       estimatedSinrValues.push_back(sinr);
@@ -465,10 +472,12 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
       if (available_TBSize >= request) {
         satisfied_users.push_back(make_pair(user_id, to_allocate_rbgs.size()));
         ue_satisfied[user_id] = 1;
+        // std::cerr << " Satisfied #=" << to_allocate_rbgs.size();
         break;
       }
-      // maybe we can try that if the ue cannot be satisfied, and no rbs will be allocated to it
     }
+    // std::cerr << "\n";
+    // maybe we can try that if the ue cannot be satisfied, and no rbs will be allocated to it
     for (int j = 0; j < to_allocate_rbgs.size(); j++) {
       int rbg_id = to_allocate_rbgs[j];
       rbg_availability[rbg_id] = 0;
@@ -481,18 +490,18 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
   }
 
 
-  std::cerr << "+++++++++++++==== satisfied_users ====+++++++++++++====" << std::endl;
-  for (int i = 0; i < satisfied_users.size(); i++) {
-    std::cerr << "user_id: " << satisfied_users[i].first << ", allocated_RBG_num:" << satisfied_users[i].second << std::endl;
-  }
+  // std::cerr << "========= satisfied_users =========" << std::endl;
+  // for (int i = 0; i < satisfied_users.size(); i++) {
+  //   std::cerr << "user_id: " << satisfied_users[i].first << ", allocated_RBG_num:" << satisfied_users[i].second << std::endl;
+  // }
 
-
+  // std::cerr << "========= Allocation for those unallocated RBs: greedy, per UE =========\n";
   // ========= Allocation for those unallocated RBs: greedy, per UE =========
   for (int uid = 0; uid < users->size(); uid++) {
     if (ue_satisfied[uid] == 1) {
       continue;
     }
-    //std::cerr << "user_id: " << uid << std::endl;
+    // std::cerr << "user_id: " << uid << std::endl;
     // Peter
     // for (int idx = users->at(uid)->GetLowerBoundSortedIdx()+1; idx < nb_rbgs; idx++) {
     // Jiajin
@@ -519,6 +528,7 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
         if (new_estima >= old_estima) {
           // allocate the RB
           users->at(uid)->GetListOfAllocatedRBGs()->push_back(crt_rbg_id);
+          // std::cerr << " " << crt_rbg_id;
           int l = crt_rbg_id * rbg_size, r = (crt_rbg_id + 1) * rbg_size;
           for (int j = l; j < r; ++j) {
             users->at(uid)->GetListOfAllocatedRBs()->push_back(j);
@@ -530,6 +540,7 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
             //std::cerr << "  user_id: " << uid << " is satisfied" << std::endl;
           }
         }
+        // std::cerr << "\n";
       }
 
       // //Jiajin Test2
@@ -583,6 +594,7 @@ void DownlinkGreedyEDFScheduler::RBsAllocation() {
       
     }
   }
+  std::cerr << "TTI total satisfied_users = " << satisfied_users.size() << std::endl;
 
 
   // // ========= Allocation for those unallocated RBs: allocate to thsoe unsatisfied UE in a greely way (per RB) =========

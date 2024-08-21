@@ -85,7 +85,8 @@ class ENodeB : public NetworkNode {
     DLScheduler_HETEROGENOUS,
     DLScheduler_MAXCELL_CAP,
     DLScheduler_MAXFLOW,
-    DLScheduler_GREEDYEDF // Jiajin: Greedy EDF
+    DLScheduler_GREEDYEDF, // Jiajin: Greedy EDF
+    DLScheduler_HETEROGENOUS_MAXCELL // Jiajin: peter's enhanced ours
   };
   enum ULSchedulerType {
     ULScheduler_TYPE_MAXIMUM_THROUGHPUT,
